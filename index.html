@@ -3,600 +3,398 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>나의 AI 친구</title>
+<title>AI 친구 만들기</title>
 <style>
   :root {
-    --grad-a: #667eea; --grad-b: #764ba2;
-    --card: #ffffff; --soft: #f9fafb; --ink: #1f2937; --muted: #6b7280;
-    --accent: #6c4cf5; --accent-soft: #ece7ff; --blue: #2563eb; --green: #16a34a;
-    --good: #16a34a; --bad: #dc2626; --line: #e5e7eb;
-    --shadow: 0 20px 40px rgba(0,0,0,.1);
+    --bg: #f3f0ea; --card: #ffffff; --ink: #24262b; --muted: #70747d; --line: #ebe7df;
+    --brand: #2f4a7a; --brand-ink: #ffffff; --chip: #f6f4ef;
+    --shadow: 0 1px 2px rgba(30,30,40,.06), 0 12px 32px rgba(30,30,40,.10);
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --grad-a: #3b3f8f; --grad-b: #3e2459;
-      --card: #1f1d33; --soft: #29263f; --ink: #f1eefe; --muted: #a9a4c7;
-      --accent: #a08cff; --accent-soft: #332d5a; --line: #3a3560;
-      --shadow: 0 20px 40px rgba(0,0,0,.35);
+      --bg: #17181c; --card: #22242a; --ink: #eceef2; --muted: #9da2ad; --line: #33363e;
+      --brand: #8fb0e8; --brand-ink: #10213d; --chip: #2a2c33;
+      --shadow: 0 12px 32px rgba(0,0,0,.4);
     }
   }
+  :root[data-theme="dark"] {
+    --bg: #17181c; --card: #22242a; --ink: #eceef2; --muted: #9da2ad; --line: #33363e;
+    --brand: #8fb0e8; --brand-ink: #10213d; --chip: #2a2c33;
+    --shadow: 0 12px 32px rgba(0,0,0,.4);
+  }
   * { box-sizing: border-box; }
-  html { min-height: 100%; background: linear-gradient(135deg, var(--grad-a) 0%, var(--grad-b) 100%); }
-  body { margin: 0; color: var(--ink); background: transparent;
-    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif; }
-  header { padding: 28px 16px 8px; text-align: center; color: #fff; }
-  header h1 { margin: 0; font-size: 2.2rem; }
-  header p { margin: 8px 0 0; font-size: 1.15rem; opacity: .9; }
-  nav { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; padding: 12px 16px; position: sticky; top: 0; z-index: 5;
-    background: color-mix(in srgb, var(--grad-a) 70%, transparent); backdrop-filter: blur(8px); }
-  nav button { border: 1px solid rgba(255,255,255,.5); background: rgba(255,255,255,.15); color: #fff; padding: 10px 14px; border-radius: 999px; font-size: 1rem; cursor: pointer; }
-  nav button.active { background: #fff; color: var(--grad-b); font-weight: 700; }
-  main { max-width: 960px; margin: 0 auto; padding: 12px 16px 48px; }
-  section { display: none; }
-  section.active { display: block; }
-  .card { background: var(--card); border-radius: 24px; padding: 22px; box-shadow: var(--shadow); margin-bottom: 18px; }
-  h2 { margin: 0 0 12px; font-size: 1.3rem; }
-  h3 { margin: 0 0 12px; font-size: 1.15rem; }
-  label { display: block; font-weight: 600; margin: 12px 0 6px; }
-  input[type=text], select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--soft); color: var(--ink); font-size: 1rem; }
-  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-  .hero { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: center; }
-  .hero .pic { display: flex; justify-content: center; }
-  .hero .pic svg { max-width: 100%; height: auto; filter: drop-shadow(0 8px 12px rgba(0,0,0,.15)); }
-  .cname { font-size: 2rem; font-weight: 800; margin: 0; }
-  .csub { color: var(--muted); margin: 4px 0 16px; font-size: 1.05rem; }
-  .info { background: var(--soft); border-radius: 18px; padding: 18px 20px; }
-  .info .ln { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--line); }
-  .info .ln:last-child { border-bottom: 0; }
-  .info .ln span:first-child { font-weight: 600; color: var(--muted); }
-  .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 4px 0 18px; }
-  .pill { border: 0; color: #fff; font-weight: 700; padding: 13px 26px; border-radius: 999px; font-size: 1rem; cursor: pointer;
-    box-shadow: 0 8px 18px rgba(0,0,0,.18); transition: transform .2s, filter .2s; }
-  .pill:hover { transform: translateY(-2px); filter: brightness(1.08); }
-  .pill.blue { background: var(--blue); } .pill.green { background: var(--green); } .pill.purple { background: var(--accent); }
-  .btn { background: var(--accent); color: #fff; border: 0; padding: 12px 18px; border-radius: 12px; font-size: 1rem; cursor: pointer; font-weight: 600; }
-  .btn.ghost { background: var(--accent-soft); color: var(--accent); }
-  .btn.small { padding: 6px 10px; font-size: .85rem; }
-  .friends { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
-  .friend { background: var(--soft); border: 2px solid var(--line); border-radius: 18px; padding: 12px; text-align: center; cursor: pointer; position: relative;
-    transition: transform .3s, box-shadow .3s; }
-  .friend:hover { transform: translateY(-5px); box-shadow: 0 25px 50px rgba(0,0,0,.15); }
-  .friend.sel { border-color: var(--accent); background: var(--accent-soft); }
-  .friend .nm { font-weight: 800; font-size: 1.15rem; margin: 2px 0 4px; }
-  .friend .st { font-size: .8rem; color: var(--muted); line-height: 1.55; }
-  .friend .del { position: absolute; top: 8px; right: 10px; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 1rem; }
-  .speech { background: var(--accent-soft); border-radius: 14px; padding: 14px 16px; font-size: 1.1rem; line-height: 1.65; }
-  .sentence { font-size: 1.4rem; font-weight: 700; margin: 6px 0; }
-  .sentence b { color: var(--accent); }
-  .ko { color: var(--muted); font-size: .95rem; }
-  .vs { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; }
-  .vs .mid { font-weight: 800; color: var(--muted); font-size: 1.2rem; }
-  .vs .friend { cursor: default; }
-  .vs .friend:hover { transform: none; box-shadow: none; }
-  .stat { display: flex; justify-content: space-between; font-size: .95rem; gap: 8px; }
-  .bar { height: 12px; background: var(--line); border-radius: 6px; overflow: hidden; margin-top: 6px; }
-  .bar > i { display: block; height: 100%; background: var(--accent); border-radius: 6px; }
-  .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
-  .opts button { padding: 14px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--ink); font-size: 1.1rem; cursor: pointer; }
-  .opts button.right { border-color: var(--good); background: color-mix(in srgb, var(--good) 15%, var(--card)); }
-  .opts button.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 15%, var(--card)); }
-  .fb { min-height: 1.6em; font-weight: 700; margin-top: 10px; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
-  th { color: var(--muted); font-weight: 600; font-size: .9rem; }
-  .tag { display: inline-block; padding: 2px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); font-size: .8rem; font-weight: 700; }
-  .muted { color: var(--muted); }
-  .flex { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .score { font-size: 1.1rem; font-weight: 700; }
-  .hint { font-size: .8rem; color: var(--muted); margin-top: 4px; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased; }
+  main { max-width: 820px; margin: 0 auto; padding: 32px 16px 48px; }
+  .title { text-align: center; margin-bottom: 22px; }
+  .title h1 { margin: 0; font-size: 1.6rem; letter-spacing: -.01em; }
+  .title p { margin: 6px 0 0; color: var(--muted); }
+
+  /* Student ID card */
+  .id { background: var(--card); border-radius: 20px; box-shadow: var(--shadow); overflow: hidden; }
+  .id-head { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: var(--brand); color: var(--brand-ink); padding: 14px 22px; }
+  .id-head .school { font-weight: 700; letter-spacing: .02em; }
+  .id-head .kind { font-size: .8rem; opacity: .85; letter-spacing: .12em; text-transform: uppercase; }
+  .id-body { display: grid; grid-template-columns: 270px 1fr; gap: 26px; padding: 24px 22px 22px; }
+  .photo { border-radius: 14px; overflow: hidden; background: var(--chip); aspect-ratio: 300 / 340; align-self: start;
+    box-shadow: inset 0 0 0 1px var(--line); }
+  .photo svg { display: block; width: 100%; height: 100%; }
+  .name { font-size: 2rem; font-weight: 800; letter-spacing: -.01em; line-height: 1.15; margin: 0; overflow-wrap: anywhere; }
+  .native { color: var(--muted); font-size: 1.05rem; margin-top: 4px; }
+  .native:empty { display: none; }
+  .listen { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 4px; }
+  .listen button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--chip); color: var(--ink);
+    padding: 8px 12px; border-radius: 999px; font-size: .92rem; cursor: pointer; }
+  .listen button:hover { border-color: var(--brand); }
+  .note { font-size: .8rem; color: var(--muted); min-height: 1.2em; }
+  dl { margin: 14px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  dl div { background: var(--chip); border-radius: 12px; padding: 10px 12px; }
+  dt { font-size: .78rem; color: var(--muted); }
+  dt small { opacity: .8; }
+  dd { margin: 2px 0 0; font-size: 1.12rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .id-foot { display: flex; justify-content: space-between; gap: 12px; border-top: 1px dashed var(--line);
+    padding: 12px 22px; color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
+
+  .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+  .btn { border: 0; border-radius: 12px; padding: 13px 22px; font-size: 1rem; font-weight: 700; cursor: pointer; }
+  .btn.primary { background: var(--brand); color: var(--brand-ink); }
+  .btn.secondary { background: var(--card); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
+  .btn:hover { filter: brightness(1.06); }
+  .pick { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 14px; color: var(--muted); font-size: .9rem; }
+  .pick select { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font-size: .95rem; }
+
   @media (max-width: 640px) {
-    .hero { grid-template-columns: 1fr; }
-    .cname { text-align: center; } .csub { text-align: center; }
-    .vs { grid-template-columns: 1fr; } .vs .mid { text-align: center; }
-    header h1 { font-size: 1.8rem; }
+    main { padding-top: 20px; }
+    .id-body { grid-template-columns: 1fr; gap: 18px; }
+    .photo { width: min(260px, 100%); margin: 0 auto; }
+    .name, .native { text-align: center; }
+    .listen { justify-content: center; }
+    .note { text-align: center; }
   }
 </style>
 </head>
 <body>
-<header>
-  <h1>나의 AI 친구</h1>
-  <p>당신만의 특별한 AI 친구를 만들고, 친구들과 비교해 보세요</p>
-</header>
-<nav>
-  <button data-tab="make" class="active">① 친구 생성</button>
-  <button data-tab="gallery">② 우리 반 친구들</button>
-  <button data-tab="compare">③ 비교하기</button>
-  <button data-tab="quiz">④ 퀴즈</button>
-  <button data-tab="rules">📘 표현 정리</button>
-</nav>
 <main>
+  <div class="title">
+    <h1>AI 친구 만들기</h1>
+    <p>버튼을 눌러 세계 여러 나라의 새 친구를 만나 보세요</p>
+  </div>
 
-<!-- 1. MAKE (Canva 'AI 친구' 페이지 구성) -->
-<section id="make" class="active">
-  <div class="card">
-    <div class="hero">
-      <div class="pic" id="mPic"></div>
+  <article class="id" aria-live="polite">
+    <div class="id-head">
+      <span class="school">Global Friends School</span>
+      <span class="kind">Student ID</span>
+    </div>
+    <div class="id-body">
+      <div class="photo" id="photo"></div>
       <div>
-        <h2 class="cname" id="mName"></h2>
-        <p class="csub">당신의 AI 친구</p>
-        <div class="info">
-          <h3>기본 정보</h3>
-          <div id="mInfo"></div>
+        <h2 class="name" id="name"></h2>
+        <div class="native" id="native" dir="auto"></div>
+        <div class="listen">
+          <button type="button" id="sayNative">🔊 이름 듣기 <span id="langLabel"></span></button>
+          <button type="button" id="sayEnglish">🔊 영어로 듣기</button>
         </div>
+        <div class="note" id="note"></div>
+        <dl id="info"></dl>
       </div>
     </div>
-  </div>
+    <div class="id-foot"><span id="idNo"></span><span>Grade 6</span></div>
+  </article>
+
   <div class="actions">
-    <button class="pill blue" id="regenBtn">새로운 친구 생성</button>
-    <button class="pill green" id="renameBtn">이름만 바꾸기</button>
-    <button class="pill purple" id="saveBtn">우리 반에 저장</button>
+    <button class="btn primary" id="newBtn">새로운 친구 만들기</button>
+    <button class="btn secondary" id="renameBtn">이름만 바꾸기</button>
   </div>
-  <div class="card">
-    <h3>자기소개 (Self-introduction)</h3>
-    <div class="speech" id="mIntro"></div>
-    <div class="flex" style="margin-top:10px">
-      <button class="btn ghost small" id="introSpeak">🔊 듣기</button>
-    </div>
+  <div class="pick">
+    <label for="countrySel">국적</label>
+    <select id="countrySel"></select>
   </div>
-</section>
-
-<!-- 2. GALLERY -->
-<section id="gallery">
-  <div class="card">
-    <h2>우리 반 AI 친구들</h2>
-    <p class="muted">카드를 눌러 자기소개를 들어보세요. 친구 코드로 다른 기기와 친구를 주고받을 수 있어요.</p>
-    <div class="friends" id="friendList"></div>
-  </div>
-  <div class="card" id="introCard" style="display:none">
-    <div class="speech" id="gIntro"></div>
-    <div class="flex" style="margin-top:10px">
-      <button class="btn ghost small" id="gSpeak">🔊 듣기</button>
-      <button class="btn ghost small" id="gCode">📋 친구 코드 복사</button>
-    </div>
-  </div>
-  <div class="card">
-    <h2>친구 코드로 불러오기</h2>
-    <div class="flex">
-      <input id="codeIn" type="text" placeholder="친구 코드를 붙여넣으세요" style="flex:1;min-width:180px">
-      <button class="btn" id="codeLoad">불러오기</button>
-    </div>
-    <div class="fb" id="codeFb"></div>
-    <button class="btn ghost small" id="resetBtn" style="margin-top:8px">기본 친구로 초기화</button>
-  </div>
-</section>
-
-<!-- 3. COMPARE -->
-<section id="compare">
-  <div class="card">
-    <h2>두 친구 비교하기</h2>
-    <div class="row">
-      <div><label for="cA">친구 A</label><select id="cA"></select></div>
-      <div><label for="cB">친구 B</label><select id="cB"></select></div>
-      <div><label for="cT">무엇을 비교할까요?</label><select id="cT"></select></div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="vs" id="vsBox"></div>
-  </div>
-  <div class="card">
-    <p class="muted" style="margin:0 0 4px">Q.</p>
-    <div class="sentence" id="cQ"></div>
-    <p class="muted" style="margin:14px 0 4px">A.</p>
-    <div id="cSentences"></div>
-    <div class="flex" style="margin-top:12px">
-      <button class="btn ghost small" id="cSpeak">🔊 듣기</button>
-    </div>
-  </div>
-</section>
-
-<!-- 4. QUIZ -->
-<section id="quiz">
-  <div class="card">
-    <div class="flex" style="justify-content:space-between">
-      <h2 style="margin:0">비교 표현 퀴즈</h2>
-      <span class="score" id="qScore">0 / 0</span>
-    </div>
-    <div class="flex" style="margin-top:10px">
-      <label style="margin:0"><input type="radio" name="qmode" value="who" checked> Who / Whose ~?</label>
-      <label style="margin:0"><input type="radio" name="qmode" value="word"> 빈칸 채우기</label>
-      <label style="margin:0"><input type="radio" name="qmode" value="ox"> O / X</label>
-    </div>
-  </div>
-  <div class="card">
-    <div class="vs" id="qVs"></div>
-  </div>
-  <div class="card">
-    <div class="sentence" id="qText"></div>
-    <div class="opts" id="qOpts"></div>
-    <div class="fb" id="qFb"></div>
-    <div class="flex"><button class="btn" id="qNext">다음 문제 ▶</button></div>
-  </div>
-</section>
-
-<!-- 5. RULES -->
-<section id="rules">
-  <div class="card">
-    <h2>기본 정보별 비교 표현</h2>
-    <table>
-      <tr><th>기본 정보</th><th>비교 표현</th><th>예문</th></tr>
-      <tr><td>키</td><td>taller / shorter</td><td>Alex is taller than Ben.</td></tr>
-      <tr><td>몸무게</td><td>heavier / lighter</td><td>Ben is heavier than Alex.</td></tr>
-      <tr><td>힘</td><td>stronger / weaker</td><td>Alex is stronger than Ben.</td></tr>
-      <tr><td>50m 달리기</td><td>faster / slower</td><td>Ben is faster than Alex. <span class="muted">(기록이 짧을수록 빨라요!)</span></td></tr>
-      <tr><td>좋아하는 펜 길이</td><td>longer / shorter</td><td>Alex's pen is longer than Ben's.</td></tr>
-      <tr><td>가방 용량</td><td>bigger / smaller</td><td>Ben's bag is bigger than Alex's.</td></tr>
-    </table>
-  </div>
-  <div class="card">
-    <h2>비교급 만들기 규칙</h2>
-    <table>
-      <tr><th>규칙</th><th>원래 형태</th><th>비교급</th></tr>
-      <tr><td><span class="tag">+er</span> 대부분</td><td>tall, short, fast, strong, long, light</td><td>taller, shorter, faster, stronger, longer, lighter</td></tr>
-      <tr><td><span class="tag">+r</span> e로 끝나면</td><td>large, nice</td><td>larger, nicer</td></tr>
-      <tr><td><span class="tag">y→ier</span></td><td>heavy, happy</td><td>heavier, happier</td></tr>
-      <tr><td><span class="tag">자음 한 번 더</span></td><td>big, thin</td><td>bigger, thinner</td></tr>
-      <tr><td><span class="tag">more</span> 긴 단어</td><td>beautiful, popular</td><td>more beautiful, more popular</td></tr>
-      <tr><td><span class="tag">불규칙</span></td><td>good, bad</td><td>better, worse</td></tr>
-    </table>
-  </div>
-  <div class="card">
-    <h2>문장 틀</h2>
-    <div class="speech">
-      <b>Who is taller, Alex or Ben?</b> → <b>Alex is taller than Ben.</b><br>
-      <b>Who is faster?</b> → <b>Ben is faster.</b><br>
-      <b>Whose bag is bigger, Alex's or Ben's?</b> → <b>Ben's bag is bigger than Alex's.</b><br>
-      <b>Is Alex stronger than Ben?</b> → <b>Yes, he is. / No, he isn't.</b>
-    </div>
-  </div>
-</section>
 </main>
 
 <script>
-// ---------- data (Canva 'AI 친구' 페이지와 같은 항목·범위) ----------
-const NAMES = {
-  M: ['Alex','Ben','Chris','David','Eric','Frank','George','Henry','Ian','Jack','Kevin','Luke',
-      'Mike','Nick','Oscar','Paul','Quinn','Ryan','Sam','Tom','Victor','Will','Xavier','Zack'],
-  F: ['Amy','Bella','Chloe','Daisy','Emma','Fiona','Grace','Hannah','Ivy','Julia','Kate','Lily',
-      'Mia','Nora','Olivia','Rachel','Sophie','Tina','Uma','Vicky','Wendy','Yuna','Zoe'],
-};
-// subject "person": "Alex is taller than Ben."  subject "noun": "Alex's pen is longer than Ben's."
-// inverse: a smaller number wins the "more" word (50m 기록이 짧을수록 faster).
-const TRAITS = [
-  { key:"height",   label:"키",             min:160, max:180, dec:2, fmt:v=>`${v.toFixed(2)}cm`,
-    more:"taller",   less:"shorter", adj:"tall",   adjL:"short",   koM:"키가 더 커요",   koL:"키가 더 작아요",
-    intro:v=>`I'm ${v.toFixed(2)} cm tall.` },
-  { key:"weight",   label:"몸무게",         min:40,  max:70,  dec:2, fmt:v=>`${v.toFixed(2)}kg`,
-    more:"heavier",  less:"lighter", adj:"heavy",  adjL:"light",  koM:"더 무거워요",    koL:"더 가벼워요",
-    intro:v=>`I weigh ${v.toFixed(2)} kg.` },
-  { key:"strength", label:"힘",             min:150, max:200, dec:2, fmt:v=>`${v.toFixed(2)}kg`,
-    more:"stronger", less:"weaker",  adj:"strong", adjL:"weak", koM:"힘이 더 세요",   koL:"힘이 더 약해요",
-    intro:v=>`I can lift ${v.toFixed(2)} kg.` },
-  { key:"run",      label:"50m 달리기",     min:6,   max:9,   dec:2, fmt:v=>`${v.toFixed(2)}초`, inverse:true,
-    more:"faster",   less:"slower",  adj:"fast",   adjL:"slow",   koM:"더 빨라요",      koL:"더 느려요",
-    intro:v=>`I can run 50 meters in ${v.toFixed(2)} seconds.` },
-  { key:"pen",      label:"좋아하는 펜 길이", min:10,  max:20,  dec:2, fmt:v=>`${v.toFixed(2)}cm`,
-    noun:"pen", koNoun:"펜", koNounSubj:"펜이",
-    more:"longer",   less:"shorter", adj:"long",   adjL:"short",   koM:"더 길어요",      koL:"더 짧아요",
-    intro:v=>`My favorite pen is ${v.toFixed(2)} cm long.` },
-  { key:"bag",      label:"가방 용량",       min:8,   max:20,  dec:0, fmt:v=>`책 ${v}권`,
-    noun:"bag", koNoun:"가방", koNounSubj:"가방이",
-    more:"bigger",   less:"smaller", adj:"big",    adjL:"small",    koM:"더 커요",        koL:"더 작아요",
-    intro:v=>`My bag can hold ${v} books.` },
-];
-const LOOK = {
-  hair:  [["#8b4513","#654321","#4a2c17"], ["#3a3a3a","#222222","#111111"], ["#e8c170","#c9a04a","#a67f2e"], ["#b5562b","#8c3d1c","#6a2c12"]],
-  suit:  ["#2c3e50","#1e5f8c","#5b3a8c","#2f6b4f"],
-  accent:["#c0392b","#e67e22","#16a085","#d6336c"],
-  eye:   [["#87ceeb","#4682b4"], ["#a0785a","#5c3a21"], ["#9ad19a","#3c8d3c"]],
-};
-const DEFAULT_FRIENDS = [
-  { name:"Alex",  gender:"M", look:{hair:0,suit:0,accent:0,eye:0}, height:172.45, weight:58.73, strength:167.82, run:7.23, pen:14.70, bag:12 },
-  { name:"Emma",  gender:"F", look:{hair:2,suit:2,accent:3,eye:2}, height:164.18, weight:47.36, strength:158.04, run:6.91, pen:17.25, bag:9 },
-  { name:"Ryan",  gender:"M", look:{hair:1,suit:1,accent:1,eye:1}, height:178.02, weight:66.50, strength:191.37, run:8.12, pen:11.84, bag:17 },
-  { name:"Sophie",gender:"F", look:{hair:3,suit:3,accent:2,eye:0}, height:161.77, weight:44.09, strength:172.66, run:7.58, pen:19.03, bag:14 },
+// ---------- countries & names ----------
+// given/family: [romanized, native]. order "family" = native name is written family name first.
+const COUNTRIES = [
+  { id:"KR", flag:"🇰🇷", ko:"대한민국", en:"Korea", lang:"ko-KR", langKo:"한국어", order:"family", sep:"",
+    skin:[0,1], m:[["Minjun","민준"],["Seojun","서준"],["Doyun","도윤"],["Jiho","지호"],["Hajun","하준"],["Eunwoo","은우"]],
+    f:[["Seoyeon","서연"],["Jiwoo","지우"],["Haeun","하은"],["Sua","수아"],["Jiyu","지유"],["Yerin","예린"]],
+    fam:[["Kim","김"],["Lee","이"],["Park","박"],["Choi","최"],["Jung","정"],["Kang","강"]] },
+  { id:"JP", flag:"🇯🇵", ko:"일본", en:"Japan", lang:"ja-JP", langKo:"일본어", order:"family", sep:" ",
+    skin:[0,1], m:[["Haruto","はると"],["Sota","そうた"],["Yuto","ゆうと"],["Riku","りく"],["Ren","れん"],["Minato","みなと"]],
+    f:[["Yui","ゆい"],["Hina","ひな"],["Sakura","さくら"],["Mio","みお"],["Aoi","あおい"],["Rin","りん"]],
+    fam:[["Sato","佐藤"],["Suzuki","鈴木"],["Takahashi","高橋"],["Tanaka","田中"],["Ito","伊藤"],["Watanabe","渡辺"]] },
+  { id:"CN", flag:"🇨🇳", ko:"중국", en:"China", lang:"zh-CN", langKo:"중국어", order:"family", sep:"",
+    skin:[0,1], m:[["Hao","浩"],["Jun","俊"],["Wei","伟"],["Yuxuan","宇轩"],["Haoran","浩然"],["Ming","明"]],
+    f:[["Mei","美"],["Xinyi","欣怡"],["Yutong","雨桐"],["Na","娜"],["Jing","静"],["Ruoxi","若曦"]],
+    fam:[["Wang","王"],["Li","李"],["Zhang","张"],["Liu","刘"],["Chen","陈"],["Yang","杨"]] },
+  { id:"VN", flag:"🇻🇳", ko:"베트남", en:"Vietnam", lang:"vi-VN", langKo:"베트남어", order:"family", sep:" ",
+    skin:[1,2], m:[["Minh","Minh"],["Khoa","Khoa"],["Huy","Huy"],["Bao","Bảo"],["Duc","Đức"],["Nam","Nam"]],
+    f:[["Linh","Linh"],["Anh","Anh"],["Mai","Mai"],["Thao","Thảo"],["Ngoc","Ngọc"],["Trang","Trang"]],
+    fam:[["Nguyen","Nguyễn"],["Tran","Trần"],["Le","Lê"],["Pham","Phạm"],["Hoang","Hoàng"]] },
+  { id:"IN", flag:"🇮🇳", ko:"인도", en:"India", lang:"hi-IN", langKo:"힌디어", sep:" ",
+    skin:[2,3,4], m:[["Aarav","आरव"],["Vihaan","विहान"],["Arjun","अर्जुन"],["Rohan","रोहन"],["Kabir","कबीर"],["Ishaan","ईशान"]],
+    f:[["Priya","प्रिया"],["Ananya","अनन्या"],["Diya","दिया"],["Saanvi","सान्वी"],["Meera","मीरा"],["Kavya","काव्या"]],
+    fam:[["Sharma","शर्मा"],["Patel","पटेल"],["Singh","सिंह"],["Gupta","गुप्ता"],["Reddy","रेड्डी"]] },
+  { id:"EG", flag:"🇪🇬", ko:"이집트", en:"Egypt", lang:"ar-EG", langKo:"아랍어", sep:" ",
+    skin:[1,2,3], m:[["Omar","عمر"],["Youssef","يوسف"],["Ahmed","أحمد"],["Karim","كريم"],["Ali","علي"],["Mostafa","مصطفى"]],
+    f:[["Mariam","مريم"],["Nour","نور"],["Salma","سلمى"],["Farida","فريدة"],["Layla","ليلى"],["Hana","هنا"]],
+    fam:[["Hassan","حسن"],["Mahmoud","محمود"],["Ibrahim","إبراهيم"],["Saeed","سعيد"],["Mansour","منصور"]] },
+  { id:"NG", flag:"🇳🇬", ko:"나이지리아", en:"Nigeria", lang:"en-NG", langKo:"나이지리아 영어", sep:" ",
+    skin:[4,5,6], curly:true, m:[["Chinedu"],["Tunde"],["Emeka"],["Femi"],["Obinna"],["Ifeanyi"]],
+    f:[["Amara"],["Chiamaka"],["Ngozi"],["Adaeze"],["Funmi"],["Zainab"]],
+    fam:[["Okafor"],["Adeyemi"],["Okeke"],["Balogun"],["Eze"]] },
+  { id:"FR", flag:"🇫🇷", ko:"프랑스", en:"France", lang:"fr-FR", langKo:"프랑스어", sep:" ",
+    skin:[0,1,2,3,4,5], m:[["Lucas"],["Hugo"],["Louis"],["Gabriel"],["Arthur"],["Jules"]],
+    f:[["Chloé"],["Léa"],["Manon"],["Inès"],["Camille"],["Jade"]],
+    fam:[["Martin"],["Bernard"],["Dubois"],["Moreau"],["Laurent"],["Lefebvre"]] },
+  { id:"DE", flag:"🇩🇪", ko:"독일", en:"Germany", lang:"de-DE", langKo:"독일어", sep:" ",
+    skin:[0,1,2], m:[["Leon"],["Paul"],["Finn"],["Felix"],["Jonas"],["Noah"]],
+    f:[["Mia"],["Emilia"],["Hannah"],["Lea"],["Lina"],["Clara"]],
+    fam:[["Müller"],["Schmidt"],["Schneider"],["Fischer"],["Weber"],["Becker"]] },
+  { id:"ES", flag:"🇪🇸", ko:"스페인", en:"Spain", lang:"es-ES", langKo:"스페인어", sep:" ",
+    skin:[0,1,2], m:[["Mateo"],["Hugo"],["Martín"],["Lucas"],["Pablo"],["Álvaro"]],
+    f:[["Lucía"],["Sofía"],["Martina"],["Paula"],["Valeria"],["Carmen"]],
+    fam:[["García"],["Fernández"],["López"],["Martínez"],["Sánchez"]] },
+  { id:"IT", flag:"🇮🇹", ko:"이탈리아", en:"Italy", lang:"it-IT", langKo:"이탈리아어", sep:" ",
+    skin:[0,1,2], m:[["Leonardo"],["Francesco"],["Tommaso"],["Lorenzo"],["Matteo"],["Riccardo"]],
+    f:[["Sofia"],["Giulia"],["Aurora"],["Ginevra"],["Alice"],["Beatrice"]],
+    fam:[["Rossi"],["Russo"],["Ferrari"],["Esposito"],["Bianchi"],["Romano"]] },
+  { id:"MX", flag:"🇲🇽", ko:"멕시코", en:"Mexico", lang:"es-MX", langKo:"스페인어", sep:" ",
+    skin:[1,2,3], m:[["Santiago"],["Diego"],["Emiliano"],["Sebastián"],["Leonardo"],["Iker"]],
+    f:[["Ximena"],["Valentina"],["Regina"],["Camila"],["Renata"],["Fernanda"]],
+    fam:[["Hernández"],["González"],["Rodríguez"],["Ramírez"],["Torres"]] },
+  { id:"BR", flag:"🇧🇷", ko:"브라질", en:"Brazil", lang:"pt-BR", langKo:"포르투갈어", sep:" ",
+    skin:[0,1,2,3,4,5,6], m:[["Miguel"],["Arthur"],["Davi"],["Gabriel"],["Heitor"],["Pedro"]],
+    f:[["Helena"],["Alice"],["Laura"],["Manuela"],["Beatriz"],["Júlia"]],
+    fam:[["Silva"],["Santos"],["Oliveira"],["Souza"],["Costa"],["Pereira"]] },
+  { id:"US", flag:"🇺🇸", ko:"미국", en:"the USA", lang:"en-US", langKo:"미국 영어", sep:" ",
+    skin:[0,1,2,3,4,5,6], m:[["Liam"],["Noah"],["Ethan"],["Mason"],["Logan"],["Jayden"]],
+    f:[["Olivia"],["Emma"],["Ava"],["Harper"],["Madison"],["Abigail"]],
+    fam:[["Smith"],["Johnson"],["Williams"],["Brown"],["Davis"],["Miller"]] },
+  { id:"GB", flag:"🇬🇧", ko:"영국", en:"the UK", lang:"en-GB", langKo:"영국 영어", sep:" ",
+    skin:[0,1,2,3,4,5], m:[["Oliver"],["Harry"],["George"],["Arthur"],["Theo"],["Alfie"]],
+    f:[["Amelia"],["Isla"],["Ava"],["Lily"],["Freya"],["Poppy"]],
+    fam:[["Taylor"],["Evans"],["Wilson"],["Thomas"],["Roberts"],["Walker"]] },
+  { id:"CA", flag:"🇨🇦", ko:"캐나다", en:"Canada", lang:"en-CA", langKo:"캐나다 영어", sep:" ",
+    skin:[0,1,2,3,4,5], m:[["Ethan"],["Owen"],["Benjamin"],["Lucas"],["Nathan"],["Liam"]],
+    f:[["Chloe"],["Emily"],["Sophie"],["Maya"],["Avery"],["Zoe"]],
+    fam:[["Tremblay"],["Roy"],["Campbell"],["MacDonald"],["Gagnon"],["Martin"]] },
+  { id:"AU", flag:"🇦🇺", ko:"호주", en:"Australia", lang:"en-AU", langKo:"호주 영어", sep:" ",
+    skin:[0,1,2,3,4], m:[["Jack"],["Cooper"],["William"],["Lachlan"],["Hudson"],["Max"]],
+    f:[["Charlotte"],["Matilda"],["Ruby"],["Isla"],["Chloe"],["Sienna"]],
+    fam:[["Smith"],["Jones"],["Kelly"],["Murphy"],["Mitchell"],["Brown"]] },
 ];
 
-// ---------- storage (best effort) ----------
-const STORE = "aiFriendCompare.v2";
-function load() {
-  try { const v = JSON.parse(localStorage.getItem(STORE)); if (Array.isArray(v) && v.length >= 2) return v.map(validFriend).filter(Boolean); } catch (e) {}
-  return structuredClone(DEFAULT_FRIENDS);
-}
-function save() { try { localStorage.setItem(STORE, JSON.stringify(friends)); } catch (e) {} }
+// ---------- looks ----------
+const SKIN = [ // [base, shade]
+  ["#f8dcc8","#e8bfa6"], ["#f1c9a5","#dcaa82"], ["#e2b086","#c8926a"], ["#c98e62","#ab734b"],
+  ["#a86f45","#8c5733"], ["#8a5634","#6f4227"], ["#5f3a24","#4a2b19"],
+];
+const HAIR = ["#1d1a19", "#3a2a22", "#5e3c26", "#8a5a33", "#c9a063", "#9a4a2a"]; // black → red
+const EYES = ["#3b2a20", "#5b3d26", "#6e6238", "#4f7550", "#4b74a3", "#76838f"];
+const BACKDROP = [["#dfe8f1","#c9d6e4"], ["#e9e3f1","#d6cde6"], ["#f1e6dc","#e2d1c1"], ["#e0ece2","#c9dccd"], ["#eeeadf","#ddd6c4"]];
+const UNIFORM = [ // [blazer, lapel, tie]
+  ["#24334f","#1b273d","#9b2c2c"], ["#2e4a3c","#233a2f","#b8862b"], ["#4b2734","#3a1d28","#2f4a7a"], ["#55585f","#43464c","#2f6f8a"],
+];
+const STYLES = { M: ["short","side","buzz","curly"], F: ["long","bob","bun","curlyLong"] };
+
+// ---------- stats (realistic ranges for 6th graders) ----------
+const STATS = [
+  { key:"height", ko:"키", en:"Height", fmt:v=>`${v.toFixed(1)} cm` },
+  { key:"weight", ko:"몸무게", en:"Weight", fmt:v=>`${v.toFixed(1)} kg` },
+  { key:"grip",   ko:"힘 (악력)", en:"Strength", fmt:v=>`${v.toFixed(1)} kg` },
+  { key:"run",    ko:"50m 달리기", en:"50m run", fmt:v=>`${v.toFixed(2)}초` },
+  { key:"pen",    ko:"좋아하는 펜 길이", en:"Favorite pen", fmt:v=>`${v.toFixed(1)} cm` },
+  { key:"bag",    ko:"가방 용량", en:"Bag", fmt:v=>`책 ${v}권` },
+];
 
 // ---------- helpers ----------
 const $ = id => document.getElementById(id);
-const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const randInt = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
-const randFloat = (a, b, d = 2) => +(Math.random() * (b - a) + a).toFixed(d);
-const pick = arr => arr[Math.floor(Math.random() * arr.length)];
-const shuffle = arr => arr.map(v => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map(v => v[1]);
-const clampIdx = (v, arr) => Number.isInteger(v) && v >= 0 && v < arr.length ? v : 0;
-
-function speak(text) {
-  if (!("speechSynthesis" in window)) return;
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = "en-US"; u.rate = 0.9;
-  speechSynthesis.speak(u);
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const rand = (a, b) => Math.random() * (b - a) + a;
+const randInt = (a, b) => Math.floor(rand(a, b + 1));
+const round = (v, d) => +v.toFixed(d);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+function mix(hex, amt) { // amt > 0 lightens, < 0 darkens
+  const n = parseInt(hex.slice(1), 16), t = amt < 0 ? 0 : 255, p = Math.abs(amt);
+  const c = [n >> 16, (n >> 8) & 255, n & 255].map(x => Math.round((t - x) * p + x));
+  return "#" + c.map(x => x.toString(16).padStart(2, "0")).join("");
 }
 
-function validFriend(f) {
-  if (!f || typeof f.name !== "string" || !f.name.trim()) return null;
-  const look = f.look || {};
-  const out = { name: f.name.trim().slice(0, 14), gender: f.gender === "F" ? "F" : "M",
-    look: { hair: clampIdx(look.hair, LOOK.hair), suit: clampIdx(look.suit, LOOK.suit),
-            accent: clampIdx(look.accent, LOOK.accent), eye: clampIdx(look.eye, LOOK.eye) } };
-  for (const t of TRAITS) {
-    const v = Number(f[t.key]);
-    if (!Number.isFinite(v)) return null;
-    out[t.key] = +Math.min(t.max, Math.max(t.min, v)).toFixed(t.dec);
+function makeName(c, gender, avoid) {
+  for (let i = 0; i < 30; i++) {
+    const g = pick(gender === "M" ? c.m : c.f), fam = pick(c.fam);
+    const en = `${g[0]} ${fam[0]}`;
+    if (en === avoid) continue;
+    const gn = g[1] || g[0], fn = fam[1] || fam[0];
+    const native = c.order === "family" ? fn + c.sep + gn : gn + " " + fn;
+    return { en, native };
   }
-  return out;
 }
 
-function generateFriend() {
-  const gender = Math.random() < 0.5 ? "M" : "F";
-  const f = { name: pick(NAMES[gender]), gender,
-    look: { hair: randInt(0, LOOK.hair.length - 1), suit: randInt(0, LOOK.suit.length - 1),
-            accent: randInt(0, LOOK.accent.length - 1), eye: randInt(0, LOOK.eye.length - 1) } };
-  TRAITS.forEach(t => f[t.key] = t.dec ? randFloat(t.min, t.max, t.dec) : randInt(t.min, t.max));
-  return f;
+function makeStudent(countryId) {
+  const c = COUNTRIES.find(x => x.id === countryId) || pick(COUNTRIES);
+  const gender = Math.random() < .5 ? "M" : "F";
+  const skin = pick(c.skin);
+  const darkFeatures = skin >= 3 || ["KR","JP","CN","VN","IN","EG","MX"].includes(c.id);
+  const hair = darkFeatures ? pick([0, 0, 1]) : pick([0, 1, 2, 2, 3, 3, 4, 5]);
+  const eye = darkFeatures ? pick([0, 1]) : pick([0, 1, 2, 3, 4, 5]);
+  let style = pick(STYLES[gender]);
+  if (c.curly && Math.random() < .6) style = gender === "M" ? pick(["curly", "buzz"]) : "curlyLong";
+  const height = round(rand(140, 168), 1);
+  return {
+    country: c.id, gender, ...makeName(c, gender),
+    look: { skin, hair, eye, style, glasses: Math.random() < .2, smile: Math.random() < .5 ? "open" : "closed",
+            backdrop: randInt(0, BACKDROP.length - 1), uniform: randInt(0, UNIFORM.length - 1) },
+    height,
+    weight: round(clamp((height - 100) * .78 + rand(-7, 8), 30, 66), 1),
+    grip:   round(clamp((height - 120) * .45 + rand(-5, 7), 12, 38), 1),
+    run:    round(rand(7.6, 10.4), 2),
+    pen:    round(rand(12, 18.5), 1),
+    bag:    randInt(6, 15),
+    idNo:   `GFS-${new Date().getFullYear()}-${String(randInt(1, 9999)).padStart(4, "0")}`,
+  };
 }
 
-function introText(f) {
-  return [`Hi! I'm ${f.name}.`, `I'm your AI friend.`, ...TRAITS.map(t => t.intro(f[t.key])), `Nice to meet you!`].join(" ");
-}
-function statsHtml(f) { return TRAITS.map(t => `${t.label}: ${t.fmt(f[t.key])}`).join("<br>"); }
+// ---------- portrait ----------
+let seq = 0;
+function portrait(s) {
+  const L = s.look, id = "p" + (++seq);
+  const [skin, skinShade] = SKIN[L.skin];
+  const hair = HAIR[L.hair], hairHi = mix(hair, .22), hairLo = mix(hair, -.25);
+  const eye = EYES[L.eye];
+  const [bg1, bg2] = BACKDROP[L.backdrop];
+  const [blazer, lapel, tie] = UNIFORM[L.uniform];
+  const brow = mix(hair, L.hair >= 4 ? -.25 : 0);
+  const lip = mix(skinShade, -.18);
 
-// Character drawing, adapted from the Canva page's SVG. Each call gets unique gradient ids.
-let svgSeq = 0;
-function charSvg(f, width = 280) {
-  const p = "g" + (++svgSeq);
-  const [h1, h2, h3] = LOOK.hair[f.look.hair], suit = LOOK.suit[f.look.suit],
-        acc = LOOK.accent[f.look.accent], [e1, e2] = LOOK.eye[f.look.eye];
-  const longHair = f.gender === "F"
-    ? `<path d="M104 102 Q100 150 110 178 L170 178 Q180 150 176 102 Q172 70 140 70 Q108 70 104 102 Z" fill="url(#${p}h)" filter="url(#${p}s)"/>` : "";
-  const neck = f.gender === "F"
-    ? `<path d="M128 188 L140 194 L128 200 Z" fill="${acc}"/><path d="M152 188 L140 194 L152 200 Z" fill="${acc}"/><circle cx="140" cy="194" r="3" fill="${acc}"/>`
-    : `<path d="M135 190 L145 190 L144 220 L136 220 Z" fill="${acc}"/><path d="M135 190 L145 190 L140 195 Z" fill="${acc}" opacity=".75"/>`;
-  return `<svg width="${width}" height="${Math.round(width * 320 / 280)}" viewBox="0 0 280 320" role="img" aria-label="${esc(f.name)}">
+  const curls = (pts, r) => pts.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join("");
+  const back = {
+    long: `<path d="M86,138 C80,78 116,52 150,52 C184,52 220,78 214,138 C218,190 226,250 224,300 L76,300 C74,250 82,190 86,138 Z"/>`,
+    bob: `<path d="M84,138 C80,80 114,54 150,54 C186,54 220,80 216,138 C218,170 220,198 216,222 C190,230 110,230 84,222 C80,198 82,170 84,138 Z"/>`,
+    bun: `<circle cx="150" cy="52" r="26"/>`,
+    curly: curls([[96,112],[102,84],[124,62],[150,54],[176,62],[198,84],[204,112]], 22),
+    curlyLong: curls([[94,112],[102,82],[124,60],[150,52],[176,60],[198,82],[206,112],[88,150],[212,150],[86,190],[214,190],[92,228],[208,228],[100,262],[200,262]], 26),
+  }[L.style] || "";
+  const front = {
+    short: `<path d="M92,142 C86,92 112,62 152,62 C192,62 216,92 208,142 C204,118 196,102 184,96 C164,106 128,106 112,98 C102,108 96,122 92,142 Z"/>`,
+    side:  `<path d="M92,140 C88,90 116,60 154,60 C192,60 214,90 208,140 C204,114 194,98 180,92 C160,96 132,92 122,82 C110,98 98,116 92,140 Z"/>`,
+    buzz:  `<path d="M95,130 C97,84 122,66 150,66 C178,66 203,84 205,130 C196,102 177,88 150,88 C123,88 104,102 95,130 Z"/>`,
+    curly: `<path d="M94,130 C94,90 120,70 150,70 C180,70 206,90 206,130 C196,104 178,92 150,92 C122,92 104,104 94,130 Z"/>` +
+           curls([[102,112],[110,92],[126,80],[144,74],[162,76],[178,82],[192,94],[199,112]], 13),
+    long:  `<path d="M92,138 C90,88 118,60 152,60 C186,60 212,88 208,140 C202,114 188,98 168,92 C150,104 120,108 100,112 C96,120 93,128 92,138 Z"/>`,
+    bob:   `<path d="M92,128 C92,82 118,60 150,60 C182,60 208,82 208,128 C200,123 192,120 182,119 C160,116 140,116 118,119 C108,120 100,123 92,128 Z"/>`,
+    bun:   `<path d="M92,140 C88,88 118,62 150,62 C182,62 212,88 208,140 C200,108 180,90 150,88 C120,90 100,108 92,140 Z"/>`,
+    curlyLong: `<path d="M94,132 C94,90 120,70 150,70 C180,70 206,90 206,132 C196,106 178,94 150,94 C122,94 104,106 94,132 Z"/>` +
+           curls([[100,116],[108,94],[124,80],[142,74],[160,74],[176,80],[192,94],[200,116]], 13),
+  }[L.style];
+
+  const mouth = L.smile === "open"
+    ? `<path d="M136,189 Q150,205 164,189 Q150,194 136,189 Z" fill="#7a2e2e"/><path d="M139,190 Q150,194 161,190 L160,193 Q150,196 140,193 Z" fill="#fff" opacity=".9"/>`
+    : `<path d="M137,190 Q150,199 163,190" fill="none" stroke="${lip}" stroke-width="3" stroke-linecap="round"/>`;
+  const lashes = s.gender === "F"
+    ? `<path d="M116,145 l-4,-3 M184,145 l4,-3" stroke="#1d1a19" stroke-width="2" stroke-linecap="round"/>` : "";
+  const neckwear = s.gender === "M"
+    ? `<path d="M144,270 L156,270 L154,282 L146,282 Z" fill="${mix(tie, -.15)}"/><path d="M146,282 L154,282 L159,322 L150,334 L141,322 Z" fill="${tie}"/>`
+    : `<path d="M150,276 L130,266 L132,288 Z M150,276 L170,266 L168,288 Z" fill="${tie}"/><circle cx="150" cy="276" r="4.5" fill="${mix(tie, -.15)}"/>`;
+  const glasses = L.glasses
+    ? `<g fill="#ffffff" fill-opacity=".1" stroke="#2b2b2b" stroke-width="2.4"><rect x="111" y="134" width="34" height="24" rx="9"/><rect x="155" y="134" width="34" height="24" rx="9"/></g>
+       <path d="M145,143 Q150,140 155,143" fill="none" stroke="#2b2b2b" stroke-width="2.4"/>` : "";
+  const eyeShape = x => `M${x - 11},146 Q${x},137 ${x + 11},146 Q${x},152 ${x - 11},146 Z`;
+
+  return `<svg viewBox="0 0 300 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${s.en}의 사진">
   <defs>
-    <radialGradient id="${p}b" cx="50%" cy="30%" r="70%"><stop offset="0%" stop-color="#f8f9fa"/><stop offset="100%" stop-color="#e9ecef"/></radialGradient>
-    <linearGradient id="${p}h" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${h1}"/><stop offset="50%" stop-color="${h2}"/><stop offset="100%" stop-color="${h3}"/></linearGradient>
-    <radialGradient id="${p}k" cx="30%" cy="30%" r="80%"><stop offset="0%" stop-color="#fdbcb4"/><stop offset="70%" stop-color="#f4a688"/><stop offset="100%" stop-color="#e8956f"/></radialGradient>
-    <radialGradient id="${p}e" cx="30%" cy="30%" r="70%"><stop offset="0%" stop-color="${e1}"/><stop offset="100%" stop-color="${e2}"/></radialGradient>
-    <filter id="${p}s" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="2" dy="4" stdDeviation="3" flood-opacity=".3"/></filter>
+    <radialGradient id="${id}bg" cx="50%" cy="38%" r="75%"><stop offset="0%" stop-color="${bg1}"/><stop offset="100%" stop-color="${bg2}"/></radialGradient>
+    <radialGradient id="${id}face" cx="42%" cy="38%" r="70%"><stop offset="0%" stop-color="${mix(skin, .08)}"/><stop offset="75%" stop-color="${skin}"/><stop offset="100%" stop-color="${skinShade}"/></radialGradient>
+    <linearGradient id="${id}hair" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${hairHi}"/><stop offset="60%" stop-color="${hair}"/><stop offset="100%" stop-color="${hairLo}"/></linearGradient>
+    <linearGradient id="${id}coat" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${mix(blazer, .08)}"/><stop offset="100%" stop-color="${mix(blazer, -.12)}"/></linearGradient>
+    <clipPath id="${id}el"><path d="${eyeShape(128)}"/></clipPath>
+    <clipPath id="${id}er"><path d="${eyeShape(172)}"/></clipPath>
   </defs>
-  <rect x="20" y="20" width="240" height="280" rx="20" fill="url(#${p}b)" filter="url(#${p}s)"/>
-  ${longHair}
-  <rect x="115" y="180" width="50" height="80" rx="8" fill="${suit}" filter="url(#${p}s)"/>
-  <path d="M120 180 L160 180 L160 190 L150 185 L140 190 L130 185 L120 190 Z" fill="white"/>
-  <rect x="120" y="190" width="40" height="50" fill="white"/>
-  ${neck}
-  <ellipse cx="140" cy="120" rx="32" ry="38" fill="url(#${p}k)" filter="url(#${p}s)"/>
-  <path d="M108 95 Q115 80 125 85 Q135 75 140 80 Q145 75 155 85 Q165 80 172 95 Q170 90 165 92 Q160 85 155 90 Q150 82 145 88 Q140 82 135 88 Q130 85 125 90 Q120 90 115 92 Q110 90 108 95" fill="url(#${p}h)" filter="url(#${p}s)"/>
-  <path d="M118 88 Q122 82 126 88" stroke="${h3}" stroke-width="1" fill="none" opacity=".6"/>
-  <path d="M135 85 Q140 78 145 85" stroke="${h3}" stroke-width="1" fill="none" opacity=".6"/>
-  <path d="M154 88 Q158 82 162 88" stroke="${h3}" stroke-width="1" fill="none" opacity=".6"/>
-  <ellipse cx="128" cy="115" rx="6" ry="4" fill="white"/><ellipse cx="152" cy="115" rx="6" ry="4" fill="white"/>
-  <circle cx="128" cy="115" r="3.5" fill="url(#${p}e)"/><circle cx="152" cy="115" r="3.5" fill="url(#${p}e)"/>
-  <circle cx="128" cy="115" r="2" fill="#1a1a1a"/><circle cx="152" cy="115" r="2" fill="#1a1a1a"/>
-  <circle cx="129" cy="113" r=".8" fill="white"/><circle cx="153" cy="113" r=".8" fill="white"/>
-  <path d="M122 108 Q128 106 134 108" stroke="${h2}" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-  <path d="M146 108 Q152 106 158 108" stroke="${h2}" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-  <path d="M138 125 L142 125 L141 130 L139 130 Z" fill="#e8956f"/>
-  <path d="M132 135 Q140 140 148 135" stroke="#c0392b" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-  <path d="M135 137 Q140 139 145 137" stroke="#e74c3c" stroke-width=".8" fill="none" stroke-linecap="round"/>
-  ${f.gender === "F" ? `<ellipse cx="122" cy="128" rx="5" ry="3" fill="#f08080" opacity=".35"/><ellipse cx="158" cy="128" rx="5" ry="3" fill="#f08080" opacity=".35"/>` : ""}
-  <ellipse cx="100" cy="210" rx="10" ry="32" fill="url(#${p}k)" filter="url(#${p}s)"/>
-  <ellipse cx="180" cy="210" rx="10" ry="32" fill="url(#${p}k)" filter="url(#${p}s)"/>
-  <ellipse cx="100" cy="195" rx="12" ry="18" fill="${suit}"/><ellipse cx="180" cy="195" rx="12" ry="18" fill="${suit}"/>
-  <rect x="120" y="260" width="15" height="45" rx="7" fill="${suit}"/><rect x="145" y="260" width="15" height="45" rx="7" fill="${suit}"/>
-  <ellipse cx="127" cy="308" rx="10" ry="6" fill="#1a1a1a"/><ellipse cx="152" cy="308" rx="10" ry="6" fill="#1a1a1a"/>
-  <g transform="translate(200, 70)">
-    <circle r="16" fill="#3498db" filter="url(#${p}s)"/><circle r="13" fill="#2980b9"/>
-    <text x="0" y="5" text-anchor="middle" fill="white" font-size="12" font-weight="bold" font-family="Arial">AI</text>
-    <ellipse cx="-4" cy="-4" rx="3" ry="6" fill="white" opacity=".3"/>
-  </g>
+  <rect width="300" height="340" fill="url(#${id}bg)"/>
+  <g fill="url(#${id}hair)">${back}</g>
+  <path d="M126,196 L126,250 Q150,266 174,250 L174,196 Z" fill="${skin}"/>
+  <path d="M126,206 Q150,234 174,206 L174,196 L126,196 Z" fill="${skinShade}" opacity=".7"/>
+  <path d="M28,340 C32,288 76,262 150,258 C224,262 268,288 272,340 Z" fill="url(#${id}coat)"/>
+  <path d="M116,256 Q150,248 184,256 L150,322 Z" fill="#fbfbf9"/>
+  <path d="M124,251 L150,268 L139,288 L113,262 Z M176,251 L150,268 L161,288 L187,262 Z" fill="#ffffff" stroke="#d9d9d4" stroke-width="1"/>
+  ${neckwear}
+  <path d="M114,258 L150,324 L138,340 L108,340 L98,284 Z M186,258 L150,324 L162,340 L192,340 L202,284 Z" fill="${lapel}"/>
+  <ellipse cx="94" cy="152" rx="11" ry="17" fill="${skin}"/><ellipse cx="206" cy="152" rx="11" ry="17" fill="${skin}"/>
+  <ellipse cx="95" cy="152" rx="5" ry="9" fill="${skinShade}" opacity=".6"/><ellipse cx="205" cy="152" rx="5" ry="9" fill="${skinShade}" opacity=".6"/>
+  <path d="M94,138 C94,92 120,70 150,70 C180,70 206,92 206,138 C206,186 186,222 150,224 C114,222 94,186 94,138 Z" fill="url(#${id}face)"/>
+  <ellipse cx="118" cy="172" rx="11" ry="6" fill="#ff7f72" opacity=".16"/><ellipse cx="182" cy="172" rx="11" ry="6" fill="#ff7f72" opacity=".16"/>
+  <path d="${eyeShape(128)}" fill="#fbfaf7"/><path d="${eyeShape(172)}" fill="#fbfaf7"/>
+  <g clip-path="url(#${id}el)"><circle cx="128" cy="145.5" r="5.6" fill="${eye}"/><circle cx="128" cy="145.5" r="2.6" fill="#141414"/><circle cx="130" cy="143.5" r="1.3" fill="#fff"/></g>
+  <g clip-path="url(#${id}er)"><circle cx="172" cy="145.5" r="5.6" fill="${eye}"/><circle cx="172" cy="145.5" r="2.6" fill="#141414"/><circle cx="174" cy="143.5" r="1.3" fill="#fff"/></g>
+  <path d="M116,146 Q128,136 140,145 M160,145 Q172,136 184,146" fill="none" stroke="#1d1a19" stroke-width="2.2" stroke-linecap="round"/>
+  ${lashes}
+  <path d="M115,131 Q128,124 141,128 M159,128 Q172,124 185,131" fill="none" stroke="${brow}" stroke-width="${s.gender === "M" ? 4.2 : 3.2}" stroke-linecap="round"/>
+  <path d="M150,150 L146,173 Q150,178 156,175" fill="none" stroke="${skinShade}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  ${mouth}
+  ${glasses}
+  <g fill="url(#${id}hair)">${front}</g>
 </svg>`;
 }
 
-let friends = load();
-
-// ---------- tabs ----------
-document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
-  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("active", x === b));
-  document.querySelectorAll("section").forEach(s => s.classList.toggle("active", s.id === b.dataset.tab));
-  if (b.dataset.tab === "gallery") renderGallery();
-  if (b.dataset.tab === "compare") renderCompareSelects();
-  if (b.dataset.tab === "quiz" && !quiz.current) nextQuestion();
-});
-
-// ---------- 1. make ----------
-let current = generateFriend();
-function renderCurrent() {
-  $("mPic").innerHTML = charSvg(current);
-  $("mName").textContent = current.name;
-  $("mInfo").innerHTML = `<div class="ln"><span>성별</span><span>${current.gender === "F" ? "여자" : "남자"}</span></div>` +
-    TRAITS.map(t => `<div class="ln"><span>${t.label}</span><span>${t.fmt(current[t.key])}</span></div>`).join("");
-  $("mIntro").textContent = introText(current);
+// ---------- speech ----------
+let voices = [];
+const loadVoices = () => { try { voices = speechSynthesis.getVoices(); } catch (e) {} };
+if ("speechSynthesis" in window) { loadVoices(); speechSynthesis.onvoiceschanged = loadVoices; }
+function findVoice(lang) {
+  const base = lang.split("-")[0];
+  return voices.find(v => v.lang.replace("_", "-") === lang) || voices.find(v => v.lang.startsWith(base));
 }
-$("regenBtn").onclick = () => { current = generateFriend(); renderCurrent(); };
-$("renameBtn").onclick = () => {
-  const pool = NAMES[current.gender].filter(n => n !== current.name);
-  current.name = pick(pool); renderCurrent();
-};
-$("introSpeak").onclick = () => speak($("mIntro").textContent);
-$("saveBtn").onclick = () => {
-  if (friends.some(f => f.name.toLowerCase() === current.name.toLowerCase())) {
-    alert(`우리 반에 이미 ${current.name}이(가) 있어요. '이름만 바꾸기'를 눌러 이름을 바꿔 주세요.`); return;
-  }
-  friends.push(structuredClone(current)); save();
-  galleryPick = friends.length - 1;
-  current = generateFriend(); renderCurrent();
-  document.querySelector('nav button[data-tab="gallery"]').click();
-};
-renderCurrent();
-
-// ---------- 2. gallery ----------
-let galleryPick = null;
-function renderGallery() {
-  $("friendList").innerHTML = friends.map((f, i) => `
-    <div class="friend ${galleryPick === i ? "sel" : ""}" data-i="${i}">
-      <button class="del" data-del="${i}" title="삭제">✕</button>
-      ${charSvg(f, 120)}
-      <div class="nm">${esc(f.name)}</div>
-      <div class="st">${statsHtml(f)}</div>
-    </div>`).join("");
-  if (galleryPick !== null && friends[galleryPick]) {
-    $("gIntro").textContent = introText(friends[galleryPick]);
-    $("introCard").style.display = "block";
-  } else {
-    $("introCard").style.display = "none";
-  }
+// Returns true when a voice for the language was found, false when the browser falls back to its default.
+function say(text, lang) {
+  loadVoices();
+  const voice = findVoice(lang);
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = lang; u.rate = .85;
+  if (voice) u.voice = voice;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+  return !!voice;
 }
-$("friendList").onclick = e => {
-  const del = e.target.closest("[data-del]");
-  if (del) {
-    const i = +del.dataset.del;
-    if (friends.length <= 2) { alert("비교하려면 친구가 2명 이상 있어야 해요."); return; }
-    if (confirm(`${friends[i].name}을(를) 삭제할까요?`)) { friends.splice(i, 1); save(); galleryPick = null; renderGallery(); }
-    return;
-  }
-  const card = e.target.closest(".friend");
-  if (!card) return;
-  galleryPick = +card.dataset.i;
-  renderGallery();
+
+// ---------- render ----------
+let student;
+const countryOf = s => COUNTRIES.find(x => x.id === s.country);
+function render() {
+  const c = countryOf(student);
+  $("photo").innerHTML = portrait(student);
+  $("name").textContent = student.en;
+  $("native").textContent = student.native !== student.en ? student.native : "";
+  $("langLabel").textContent = `(${c.langKo})`;
+  $("note").textContent = "";
+  const rows = [
+    { ko:"국적", en:"Nationality", v:`${c.flag} ${c.ko} (${c.en.replace(/^the /, "")})` },
+    { ko:"성별", en:"Gender", v: student.gender === "M" ? "남자 (Boy)" : "여자 (Girl)" },
+    ...STATS.map(t => ({ ko:t.ko, en:t.en, v:t.fmt(student[t.key]) })),
+  ];
+  $("info").innerHTML = rows.map(r => `<div><dt>${r.ko} <small>${r.en}</small></dt><dd>${r.v}</dd></div>`).join("");
+  $("idNo").textContent = `No. ${student.idNo}`;
+}
+
+$("countrySel").innerHTML = `<option value="">무작위 (Random)</option>` +
+  COUNTRIES.map(c => `<option value="${c.id}">${c.flag} ${c.ko}</option>`).join("");
+$("newBtn").onclick = () => { student = makeStudent($("countrySel").value); render(); };
+$("countrySel").onchange = () => $("newBtn").click();
+$("renameBtn").onclick = () => { Object.assign(student, makeName(countryOf(student), student.gender, student.en)); render(); };
+$("sayNative").onclick = () => {
+  if (!("speechSynthesis" in window)) { $("note").textContent = "이 브라우저는 음성 듣기를 지원하지 않아요."; return; }
+  const c = countryOf(student);
+  $("note").textContent = say(student.native, c.lang) ? "" : `이 기기에 ${c.langKo} 음성이 없어 기본 음성으로 읽어요.`;
 };
-$("gSpeak").onclick = () => speak($("gIntro").textContent);
-$("gCode").onclick = async () => {
-  const code = btoa(unescape(encodeURIComponent(JSON.stringify(friends[galleryPick]))));
-  try { await navigator.clipboard.writeText(code); $("codeFb").textContent = "친구 코드를 복사했어요!"; }
-  catch (e) { prompt("아래 코드를 복사하세요", code); }
-};
-$("codeLoad").onclick = () => {
-  let f = null;
-  try { f = validFriend(JSON.parse(decodeURIComponent(escape(atob($("codeIn").value.trim()))))); } catch (e) {}
-  if (!f) { $("codeFb").textContent = "코드가 올바르지 않아요."; return; }
-  let name = f.name, n = 2;
-  while (friends.some(x => x.name.toLowerCase() === name.toLowerCase())) name = `${f.name}${n++}`;
-  f.name = name;
-  friends.push(f); save(); $("codeIn").value = ""; $("codeFb").textContent = `${f.name}을(를) 불러왔어요!`; renderGallery();
-};
-$("resetBtn").onclick = () => {
-  if (confirm("만든 친구가 모두 지워지고 기본 친구로 돌아가요. 계속할까요?")) {
-    friends = structuredClone(DEFAULT_FRIENDS); save(); galleryPick = null; renderGallery();
-  }
+$("sayEnglish").onclick = () => {
+  if (!("speechSynthesis" in window)) { $("note").textContent = "이 브라우저는 음성 듣기를 지원하지 않아요."; return; }
+  say(student.en, "en-US"); $("note").textContent = "";
 };
 
-// ---------- comparison logic ----------
-// Returns [winner, loser] for the trait's "more" word (taller, faster, ...), or null when tied.
-function rank(A, B, t) {
-  const a = A[t.key], b = B[t.key];
-  if (a === b) return null;
-  return (t.inverse ? a < b : a > b) ? [A, B] : [B, A];
-}
-// English subject phrase: "Alex" or "Alex's pen"; object phrase: "Alex" or "Alex's".
-const subj = (f, t) => t.noun ? `${esc(f.name)}'s ${t.noun}` : esc(f.name);
-const obj = (f, t) => t.noun ? `${esc(f.name)}'s` : esc(f.name);
-const koSubj = (f, t) => t.noun ? `${esc(f.name)}의 ${t.koNounSubj}` : `${esc(f.name)}은(는)`;
-const koObj = (f, t) => t.noun ? `${esc(f.name)}의 ${t.koNoun}보다` : `${esc(f.name)}보다`;
-
-function sentence(W, L, t, word) {
-  const ko = word === t.more ? t.koM : t.koL;
-  return { en: `${subj(W, t)} is <b>${word}</b> than ${obj(L, t)}.`, ko: `${koSubj(W, t)} ${koObj(L, t)} ${ko}.` };
-}
-function compareSentences(A, B, t) {
-  const r = rank(A, B, t);
-  if (!r) return [{ en: `${subj(A, t)} is as ${t.adj} as ${obj(B, t)}.`, ko: `${esc(A.name)}와(과) ${esc(B.name)}의 ${t.label}이(가) 같아요.` }];
-  const [W, L] = r;
-  return [sentence(W, L, t, t.more), sentence(L, W, t, t.less)];
-}
-function questionText(A, B, t, word = t.more) {
-  return t.noun ? `Whose ${t.noun} is ${word}, ${A.name}'s or ${B.name}'s?` : `Who is ${word}, ${A.name} or ${B.name}?`;
-}
-function vsHtml(A, B, t) {
-  const pct = f => { const r = (f[t.key] - t.min) / (t.max - t.min); return Math.max(4, Math.round((t.inverse ? 1 - r : r) * 100)); };
-  const side = f => `<div class="friend">${charSvg(f, 110)}<div class="nm">${esc(f.name)}</div>
-    <div class="stat"><span>${t.label}</span><b>${t.fmt(f[t.key])}</b></div><div class="bar"><i style="width:${pct(f)}%"></i></div>
-    ${t.inverse ? `<div class="hint">기록이 짧을수록 막대가 길어요</div>` : ""}</div>`;
-  return side(A) + `<div class="mid">VS</div>` + side(B);
-}
-
-// ---------- 3. compare ----------
-$("cT").innerHTML = TRAITS.map((t, i) => `<option value="${i}">${t.label} (${t.more} / ${t.less})</option>`).join("");
-function renderCompareSelects() {
-  const opts = friends.map((f, i) => `<option value="${i}">${esc(f.name)}</option>`).join("");
-  const a = Math.min(+$("cA").value || 0, friends.length - 1);
-  const b = Math.min($("cB").value === "" ? 1 : +$("cB").value, friends.length - 1);
-  $("cA").innerHTML = opts; $("cB").innerHTML = opts;
-  $("cA").value = a; $("cB").value = a === b ? (a + 1) % friends.length : b;
-  renderCompare();
-}
-["cA","cB","cT"].forEach(id => $(id).onchange = renderCompare);
-function renderCompare() {
-  const A = friends[+$("cA").value], B = friends[+$("cB").value], t = TRAITS[+$("cT").value];
-  if (!A || !B) return;
-  $("vsBox").innerHTML = vsHtml(A, B, t);
-  if (A === B) { $("cQ").textContent = "서로 다른 두 친구를 골라 주세요."; $("cSentences").innerHTML = ""; return; }
-  $("cQ").textContent = questionText(A, B, t);
-  $("cSentences").innerHTML = compareSentences(A, B, t).map(s => `<div class="sentence">${s.en}</div><div class="ko">${s.ko}</div>`).join("");
-}
-$("cSpeak").onclick = () => speak($("cQ").textContent + " " + [...$("cSentences").querySelectorAll(".sentence")].map(e => e.textContent).join(" "));
-
-// ---------- 4. quiz ----------
-const quiz = { right: 0, total: 0, current: null };
-const qMode = () => document.querySelector('input[name="qmode"]:checked').value;
-document.querySelectorAll('input[name="qmode"]').forEach(r => r.onchange = nextQuestion);
-
-function nextQuestion() {
-  $("qFb").textContent = "";
-  let t, A, B, r;
-  for (const cand of shuffle(TRAITS)) {
-    for (let i = 0; i < 20 && !r; i++) { [A, B] = shuffle(friends).slice(0, 2); r = rank(A, B, cand); }
-    if (r) { t = cand; break; }
-  }
-  if (!r) { $("qText").textContent = "비교할 수 있는 친구가 부족해요. 친구를 더 생성해 주세요!"; $("qOpts").innerHTML = ""; $("qVs").innerHTML = ""; return; }
-  const useMore = Math.random() < 0.5;
-  const word = useMore ? t.more : t.less;
-  const [winner, loser] = useMore ? r : [r[1], r[0]];
-  const full = sentence(winner, loser, t, word).en.replace(/<\/?b>/g, "");
-  const plain = s => s.replace(/&#39;/g, "'").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"');
-  let text, options, answer;
-  const mode = qMode();
-  if (mode === "who") {
-    text = t.noun ? `Whose ${t.noun} is ${word}?` : `Who is ${word}?`;
-    options = [obj(A, t), obj(B, t)].map(plain); answer = plain(obj(winner, t));
-  } else if (mode === "word") {
-    text = `${plain(subj(winner, t))} is ______ than ${plain(obj(loser, t))}.`;
-    // Distractors are wrong forms of the same adjective, so only one option is ever true.
-    const base = useMore ? t.adj : t.adjL;
-    options = shuffle([t.more, t.less, base, `more ${base}`]); answer = word;
-  } else {
-    const truth = Math.random() < 0.5;
-    text = plain(truth ? full : sentence(loser, winner, t, word).en.replace(/<\/?b>/g, ""));
-    options = ["O", "X"]; answer = truth ? "O" : "X";
-  }
-  quiz.current = { answer, full: plain(full), done: false };
-  $("qVs").innerHTML = vsHtml(A, B, t);
-  $("qText").textContent = text;
-  $("qOpts").innerHTML = options.map(o => `<button data-o="${esc(o)}">${esc(o)}</button>`).join("");
-}
-$("qOpts").onclick = e => {
-  const b = e.target.closest("button");
-  if (!b || !quiz.current || quiz.current.done) return;
-  quiz.current.done = true;
-  quiz.total++;
-  const ok = b.dataset.o === quiz.current.answer;
-  if (ok) quiz.right++;
-  [...$("qOpts").children].forEach(x => { if (x.dataset.o === quiz.current.answer) x.classList.add("right"); });
-  if (!ok) b.classList.add("wrong");
-  $("qFb").innerHTML = (ok ? `<span style="color:var(--good)">정답! 🎉</span> ` : `<span style="color:var(--bad)">아쉬워요!</span> `) + esc(quiz.current.full);
-  $("qScore").textContent = `${quiz.right} / ${quiz.total}`;
-  speak(quiz.current.full);
-};
-$("qNext").onclick = nextQuestion;
+student = makeStudent();
+render();
 </script>
 </body>
 </html>
