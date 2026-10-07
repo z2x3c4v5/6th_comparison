@@ -41,19 +41,25 @@
   .photo { border-radius: 14px; overflow: hidden; background: var(--chip); aspect-ratio: 300 / 340; align-self: start;
     box-shadow: inset 0 0 0 1px var(--line); }
   .photo svg { display: block; width: 100%; height: 100%; }
+  .name-row { display: flex; align-items: center; gap: 12px; }
   .name { font-size: 2rem; font-weight: 800; letter-spacing: -.01em; line-height: 1.15; margin: 0; overflow-wrap: anywhere; }
-  .native { color: var(--muted); font-size: 1.05rem; margin-top: 4px; }
-  .native:empty { display: none; }
-  .listen { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 4px; }
+  .flag { display: inline-block; vertical-align: middle; border-radius: 3px; flex: none;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.12); }
+  .readings { margin-top: 8px; display: grid; gap: 4px; }
+  .reading { display: flex; gap: 10px; align-items: baseline; font-size: 1.08rem; }
+  .reading .lbl { flex: none; width: 76px; font-size: .78rem; color: var(--muted); }
+  .reading .val { font-weight: 600; }
+  .listen { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 4px; }
   .listen button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--chip); color: var(--ink);
     padding: 8px 12px; border-radius: 999px; font-size: .92rem; cursor: pointer; }
   .listen button:hover { border-color: var(--brand); }
   .note { font-size: .8rem; color: var(--muted); min-height: 1.2em; }
-  dl { margin: 14px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  dl { margin: 10px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   dl div { background: var(--chip); border-radius: 12px; padding: 10px 12px; }
   dt { font-size: .78rem; color: var(--muted); }
   dt small { opacity: .8; }
-  dd { margin: 2px 0 0; font-size: 1.12rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  dd { margin: 2px 0 0; font-size: 1.12rem; font-weight: 700; font-variant-numeric: tabular-nums;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .id-foot { display: flex; justify-content: space-between; gap: 12px; border-top: 1px dashed var(--line);
     padding: 12px 22px; color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
 
@@ -69,7 +75,8 @@
     main { padding-top: 20px; }
     .id-body { grid-template-columns: 1fr; gap: 18px; }
     .photo { width: min(260px, 100%); margin: 0 auto; }
-    .name, .native { text-align: center; }
+    .name-row { justify-content: center; }
+    .readings { justify-content: center; }
     .listen { justify-content: center; }
     .note { text-align: center; }
   }
@@ -90,8 +97,8 @@
     <div class="id-body">
       <div class="photo" id="photo"></div>
       <div>
-        <h2 class="name" id="name"></h2>
-        <div class="native" id="native" dir="auto"></div>
+        <div class="name-row"><span id="nameFlag"></span><h2 class="name" id="name"></h2></div>
+        <div class="readings" id="readings"></div>
         <div class="listen">
           <button type="button" id="sayNative">🔊 이름 듣기 <span id="langLabel"></span></button>
           <button type="button" id="sayEnglish">🔊 영어로 듣기</button>
@@ -115,88 +122,153 @@
 
 <script>
 // ---------- countries & names ----------
-// given/family: [romanized, native]. order "family" = native name is written family name first.
+// Each name is "romanized/native/한글". native is empty when it is the same as the romanized spelling.
+// order "family": the name is written family name first in that language (and in Korean).
 const COUNTRIES = [
-  { id:"KR", flag:"🇰🇷", ko:"대한민국", en:"Korea", lang:"ko-KR", langKo:"한국어", order:"family", sep:"",
-    skin:[0,1], m:[["Minjun","민준"],["Seojun","서준"],["Doyun","도윤"],["Jiho","지호"],["Hajun","하준"],["Eunwoo","은우"]],
-    f:[["Seoyeon","서연"],["Jiwoo","지우"],["Haeun","하은"],["Sua","수아"],["Jiyu","지유"],["Yerin","예린"]],
-    fam:[["Kim","김"],["Lee","이"],["Park","박"],["Choi","최"],["Jung","정"],["Kang","강"]] },
-  { id:"JP", flag:"🇯🇵", ko:"일본", en:"Japan", lang:"ja-JP", langKo:"일본어", order:"family", sep:" ",
-    skin:[0,1], m:[["Haruto","はると"],["Sota","そうた"],["Yuto","ゆうと"],["Riku","りく"],["Ren","れん"],["Minato","みなと"]],
-    f:[["Yui","ゆい"],["Hina","ひな"],["Sakura","さくら"],["Mio","みお"],["Aoi","あおい"],["Rin","りん"]],
-    fam:[["Sato","佐藤"],["Suzuki","鈴木"],["Takahashi","高橋"],["Tanaka","田中"],["Ito","伊藤"],["Watanabe","渡辺"]] },
-  { id:"CN", flag:"🇨🇳", ko:"중국", en:"China", lang:"zh-CN", langKo:"중국어", order:"family", sep:"",
-    skin:[0,1], m:[["Hao","浩"],["Jun","俊"],["Wei","伟"],["Yuxuan","宇轩"],["Haoran","浩然"],["Ming","明"]],
-    f:[["Mei","美"],["Xinyi","欣怡"],["Yutong","雨桐"],["Na","娜"],["Jing","静"],["Ruoxi","若曦"]],
-    fam:[["Wang","王"],["Li","李"],["Zhang","张"],["Liu","刘"],["Chen","陈"],["Yang","杨"]] },
-  { id:"VN", flag:"🇻🇳", ko:"베트남", en:"Vietnam", lang:"vi-VN", langKo:"베트남어", order:"family", sep:" ",
-    skin:[1,2], m:[["Minh","Minh"],["Khoa","Khoa"],["Huy","Huy"],["Bao","Bảo"],["Duc","Đức"],["Nam","Nam"]],
-    f:[["Linh","Linh"],["Anh","Anh"],["Mai","Mai"],["Thao","Thảo"],["Ngoc","Ngọc"],["Trang","Trang"]],
-    fam:[["Nguyen","Nguyễn"],["Tran","Trần"],["Le","Lê"],["Pham","Phạm"],["Hoang","Hoàng"]] },
-  { id:"IN", flag:"🇮🇳", ko:"인도", en:"India", lang:"hi-IN", langKo:"힌디어", sep:" ",
-    skin:[2,3,4], m:[["Aarav","आरव"],["Vihaan","विहान"],["Arjun","अर्जुन"],["Rohan","रोहन"],["Kabir","कबीर"],["Ishaan","ईशान"]],
-    f:[["Priya","प्रिया"],["Ananya","अनन्या"],["Diya","दिया"],["Saanvi","सान्वी"],["Meera","मीरा"],["Kavya","काव्या"]],
-    fam:[["Sharma","शर्मा"],["Patel","पटेल"],["Singh","सिंह"],["Gupta","गुप्ता"],["Reddy","रेड्डी"]] },
-  { id:"EG", flag:"🇪🇬", ko:"이집트", en:"Egypt", lang:"ar-EG", langKo:"아랍어", sep:" ",
-    skin:[1,2,3], m:[["Omar","عمر"],["Youssef","يوسف"],["Ahmed","أحمد"],["Karim","كريم"],["Ali","علي"],["Mostafa","مصطفى"]],
-    f:[["Mariam","مريم"],["Nour","نور"],["Salma","سلمى"],["Farida","فريدة"],["Layla","ليلى"],["Hana","هنا"]],
-    fam:[["Hassan","حسن"],["Mahmoud","محمود"],["Ibrahim","إبراهيم"],["Saeed","سعيد"],["Mansour","منصور"]] },
-  { id:"NG", flag:"🇳🇬", ko:"나이지리아", en:"Nigeria", lang:"en-NG", langKo:"나이지리아 영어", sep:" ",
-    skin:[4,5,6], curly:true, m:[["Chinedu"],["Tunde"],["Emeka"],["Femi"],["Obinna"],["Ifeanyi"]],
-    f:[["Amara"],["Chiamaka"],["Ngozi"],["Adaeze"],["Funmi"],["Zainab"]],
-    fam:[["Okafor"],["Adeyemi"],["Okeke"],["Balogun"],["Eze"]] },
-  { id:"FR", flag:"🇫🇷", ko:"프랑스", en:"France", lang:"fr-FR", langKo:"프랑스어", sep:" ",
-    skin:[0,1,2,3,4,5], m:[["Lucas"],["Hugo"],["Louis"],["Gabriel"],["Arthur"],["Jules"]],
-    f:[["Chloé"],["Léa"],["Manon"],["Inès"],["Camille"],["Jade"]],
-    fam:[["Martin"],["Bernard"],["Dubois"],["Moreau"],["Laurent"],["Lefebvre"]] },
-  { id:"DE", flag:"🇩🇪", ko:"독일", en:"Germany", lang:"de-DE", langKo:"독일어", sep:" ",
-    skin:[0,1,2], m:[["Leon"],["Paul"],["Finn"],["Felix"],["Jonas"],["Noah"]],
-    f:[["Mia"],["Emilia"],["Hannah"],["Lea"],["Lina"],["Clara"]],
-    fam:[["Müller"],["Schmidt"],["Schneider"],["Fischer"],["Weber"],["Becker"]] },
-  { id:"ES", flag:"🇪🇸", ko:"스페인", en:"Spain", lang:"es-ES", langKo:"스페인어", sep:" ",
-    skin:[0,1,2], m:[["Mateo"],["Hugo"],["Martín"],["Lucas"],["Pablo"],["Álvaro"]],
-    f:[["Lucía"],["Sofía"],["Martina"],["Paula"],["Valeria"],["Carmen"]],
-    fam:[["García"],["Fernández"],["López"],["Martínez"],["Sánchez"]] },
-  { id:"IT", flag:"🇮🇹", ko:"이탈리아", en:"Italy", lang:"it-IT", langKo:"이탈리아어", sep:" ",
-    skin:[0,1,2], m:[["Leonardo"],["Francesco"],["Tommaso"],["Lorenzo"],["Matteo"],["Riccardo"]],
-    f:[["Sofia"],["Giulia"],["Aurora"],["Ginevra"],["Alice"],["Beatrice"]],
-    fam:[["Rossi"],["Russo"],["Ferrari"],["Esposito"],["Bianchi"],["Romano"]] },
-  { id:"MX", flag:"🇲🇽", ko:"멕시코", en:"Mexico", lang:"es-MX", langKo:"스페인어", sep:" ",
-    skin:[1,2,3], m:[["Santiago"],["Diego"],["Emiliano"],["Sebastián"],["Leonardo"],["Iker"]],
-    f:[["Ximena"],["Valentina"],["Regina"],["Camila"],["Renata"],["Fernanda"]],
-    fam:[["Hernández"],["González"],["Rodríguez"],["Ramírez"],["Torres"]] },
-  { id:"BR", flag:"🇧🇷", ko:"브라질", en:"Brazil", lang:"pt-BR", langKo:"포르투갈어", sep:" ",
-    skin:[0,1,2,3,4,5,6], m:[["Miguel"],["Arthur"],["Davi"],["Gabriel"],["Heitor"],["Pedro"]],
-    f:[["Helena"],["Alice"],["Laura"],["Manuela"],["Beatriz"],["Júlia"]],
-    fam:[["Silva"],["Santos"],["Oliveira"],["Souza"],["Costa"],["Pereira"]] },
-  { id:"US", flag:"🇺🇸", ko:"미국", en:"the USA", lang:"en-US", langKo:"미국 영어", sep:" ",
-    skin:[0,1,2,3,4,5,6], m:[["Liam"],["Noah"],["Ethan"],["Mason"],["Logan"],["Jayden"]],
-    f:[["Olivia"],["Emma"],["Ava"],["Harper"],["Madison"],["Abigail"]],
-    fam:[["Smith"],["Johnson"],["Williams"],["Brown"],["Davis"],["Miller"]] },
-  { id:"GB", flag:"🇬🇧", ko:"영국", en:"the UK", lang:"en-GB", langKo:"영국 영어", sep:" ",
-    skin:[0,1,2,3,4,5], m:[["Oliver"],["Harry"],["George"],["Arthur"],["Theo"],["Alfie"]],
-    f:[["Amelia"],["Isla"],["Ava"],["Lily"],["Freya"],["Poppy"]],
-    fam:[["Taylor"],["Evans"],["Wilson"],["Thomas"],["Roberts"],["Walker"]] },
-  { id:"CA", flag:"🇨🇦", ko:"캐나다", en:"Canada", lang:"en-CA", langKo:"캐나다 영어", sep:" ",
-    skin:[0,1,2,3,4,5], m:[["Ethan"],["Owen"],["Benjamin"],["Lucas"],["Nathan"],["Liam"]],
-    f:[["Chloe"],["Emily"],["Sophie"],["Maya"],["Avery"],["Zoe"]],
-    fam:[["Tremblay"],["Roy"],["Campbell"],["MacDonald"],["Gagnon"],["Martin"]] },
-  { id:"AU", flag:"🇦🇺", ko:"호주", en:"Australia", lang:"en-AU", langKo:"호주 영어", sep:" ",
-    skin:[0,1,2,3,4], m:[["Jack"],["Cooper"],["William"],["Lachlan"],["Hudson"],["Max"]],
-    f:[["Charlotte"],["Matilda"],["Ruby"],["Isla"],["Chloe"],["Sienna"]],
-    fam:[["Smith"],["Jones"],["Kelly"],["Murphy"],["Mitchell"],["Brown"]] },
+  { id:"KR", ko:"대한민국", en:"Korea", lang:"ko-KR", langKo:"한국어", order:"family", sep:"", koSep:"", skin:[0,1],
+    m:"Minjun/민준/민준 Seojun/서준/서준 Doyun/도윤/도윤 Jiho/지호/지호 Hajun/하준/하준 Eunwoo/은우/은우",
+    f:"Seoyeon/서연/서연 Jiwoo/지우/지우 Haeun/하은/하은 Sua/수아/수아 Jiyu/지유/지유 Yerin/예린/예린",
+    fam:"Kim/김/김 Lee/이/이 Park/박/박 Choi/최/최 Jung/정/정 Kang/강/강" },
+  { id:"JP", ko:"일본", en:"Japan", lang:"ja-JP", langKo:"일본어", order:"family", sep:" ", skin:[0,1],
+    m:"Haruto/はると/하루토 Sota/そうた/소타 Yuto/ゆうと/유토 Riku/りく/리쿠 Ren/れん/렌 Minato/みなと/미나토",
+    f:"Yui/ゆい/유이 Hina/ひな/히나 Sakura/さくら/사쿠라 Mio/みお/미오 Aoi/あおい/아오이 Rin/りん/린",
+    fam:"Sato/佐藤/사토 Suzuki/鈴木/스즈키 Takahashi/高橋/다카하시 Tanaka/田中/다나카 Ito/伊藤/이토 Watanabe/渡辺/와타나베" },
+  { id:"CN", ko:"중국", en:"China", lang:"zh-CN", langKo:"중국어", order:"family", sep:"", skin:[0,1],
+    m:"Hao/浩/하오 Jun/俊/쥔 Wei/伟/웨이 Yuxuan/宇轩/위쉬안 Haoran/浩然/하오란 Ming/明/밍",
+    f:"Mei/美/메이 Xinyi/欣怡/신이 Yutong/雨桐/위퉁 Na/娜/나 Jing/静/징 Ruoxi/若曦/뤄시",
+    fam:"Wang/王/왕 Li/李/리 Zhang/张/장 Liu/刘/류 Chen/陈/천 Yang/杨/양" },
+  { id:"VN", ko:"베트남", en:"Vietnam", lang:"vi-VN", langKo:"베트남어", order:"family", sep:" ", skin:[1,2],
+    m:"Minh//민 Khoa//코아 Huy//후이 Bao/Bảo/바오 Duc/Đức/득 Nam//남",
+    f:"Linh//린 Anh//아인 Mai//마이 Thao/Thảo/타오 Ngoc/Ngọc/응옥 Trang//짱",
+    fam:"Nguyen/Nguyễn/응우옌 Tran/Trần/쩐 Le/Lê/레 Pham/Phạm/팜 Hoang/Hoàng/호앙" },
+  { id:"IN", ko:"인도", en:"India", lang:"hi-IN", langKo:"힌디어", skin:[2,3,4],
+    m:"Aarav/आरव/아라브 Vihaan/विहान/비한 Arjun/अर्जुन/아르준 Rohan/रोहन/로한 Kabir/कबीर/카비르 Ishaan/ईशान/이샨",
+    f:"Priya/प्रिया/프리야 Ananya/अनन्या/아나냐 Diya/दिया/디야 Saanvi/सान्वी/산비 Meera/मीरा/미라 Kavya/काव्या/카비야",
+    fam:"Sharma/शर्मा/샤르마 Patel/पटेल/파텔 Singh/सिंह/싱 Gupta/गुप्ता/굽타 Reddy/रेड्डी/레디" },
+  { id:"EG", ko:"이집트", en:"Egypt", lang:"ar-EG", langKo:"아랍어", skin:[1,2,3],
+    m:"Omar/عمر/오마르 Youssef/يوسف/유세프 Ahmed/أحمد/아흐메드 Karim/كريم/카림 Ali/علي/알리 Mostafa/مصطفى/모스타파",
+    f:"Mariam/مريم/마리암 Nour/نور/누르 Salma/سلمى/살마 Farida/فريدة/파리다 Layla/ليلى/라일라 Hana/هنا/하나",
+    fam:"Hassan/حسن/하산 Mahmoud/محمود/마흐무드 Ibrahim/إبراهيم/이브라힘 Saeed/سعيد/사이드 Mansour/منصور/만수르" },
+  { id:"NG", ko:"나이지리아", en:"Nigeria", lang:"en-NG", langKo:"나이지리아 영어", skin:[4,5,6], curly:true,
+    m:"Chinedu//치네두 Tunde//툰데 Emeka//에메카 Femi//페미 Obinna//오빈나 Ifeanyi//이페아니",
+    f:"Amara//아마라 Chiamaka//치아마카 Ngozi//응고지 Adaeze//아다에제 Funmi//푼미 Zainab//자이나브",
+    fam:"Okafor//오카포 Adeyemi//아데예미 Okeke//오케케 Balogun//발로군 Eze//에제" },
+  { id:"FR", ko:"프랑스", en:"France", lang:"fr-FR", langKo:"프랑스어", skin:[0,1,2,3,4,5],
+    m:"Lucas//뤼카 Hugo//위고 Louis//루이 Gabriel//가브리엘 Arthur//아르튀르 Jules//쥘",
+    f:"Chloé//클로에 Léa//레아 Manon//마농 Inès//이네스 Camille//카미유 Jade//자드",
+    fam:"Martin//마르탱 Bernard//베르나르 Dubois//뒤부아 Moreau//모로 Laurent//로랑 Lefebvre//르페브르" },
+  { id:"DE", ko:"독일", en:"Germany", lang:"de-DE", langKo:"독일어", skin:[0,1,2],
+    m:"Leon//레온 Paul//파울 Finn//핀 Felix//펠릭스 Jonas//요나스 Noah//노아",
+    f:"Mia//미아 Emilia//에밀리아 Hannah//한나 Lea//레아 Lina//리나 Clara//클라라",
+    fam:"Müller//뮐러 Schmidt//슈미트 Schneider//슈나이더 Fischer//피셔 Weber//베버 Becker//베커" },
+  { id:"ES", ko:"스페인", en:"Spain", lang:"es-ES", langKo:"스페인어", skin:[0,1,2],
+    m:"Mateo//마테오 Hugo//우고 Martín//마르틴 Lucas//루카스 Pablo//파블로 Álvaro//알바로",
+    f:"Lucía//루시아 Sofía//소피아 Martina//마르티나 Paula//파울라 Valeria//발레리아 Carmen//카르멘",
+    fam:"García//가르시아 Fernández//페르난데스 López//로페스 Martínez//마르티네스 Sánchez//산체스" },
+  { id:"IT", ko:"이탈리아", en:"Italy", lang:"it-IT", langKo:"이탈리아어", skin:[0,1,2],
+    m:"Leonardo//레오나르도 Francesco//프란체스코 Tommaso//톰마소 Lorenzo//로렌초 Matteo//마테오 Riccardo//리카르도",
+    f:"Sofia//소피아 Giulia//줄리아 Aurora//아우로라 Ginevra//지네브라 Alice//알리체 Beatrice//베아트리체",
+    fam:"Rossi//로시 Russo//루소 Ferrari//페라리 Esposito//에스포지토 Bianchi//비안키 Romano//로마노" },
+  { id:"MX", ko:"멕시코", en:"Mexico", lang:"es-MX", langKo:"스페인어", skin:[1,2,3],
+    m:"Santiago//산티아고 Diego//디에고 Emiliano//에밀리아노 Sebastián//세바스티안 Leonardo//레오나르도 Iker//이케르",
+    f:"Ximena//히메나 Valentina//발렌티나 Regina//레히나 Camila//카밀라 Renata//레나타 Fernanda//페르난다",
+    fam:"Hernández//에르난데스 González//곤살레스 Rodríguez//로드리게스 Ramírez//라미레스 Torres//토레스" },
+  { id:"BR", ko:"브라질", en:"Brazil", lang:"pt-BR", langKo:"포르투갈어", skin:[0,1,2,3,4,5,6],
+    m:"Miguel//미겔 Arthur//아르투르 Davi//다비 Gabriel//가브리에우 Heitor//에이토르 Pedro//페드루",
+    f:"Helena//엘레나 Alice//알리시 Laura//라우라 Manuela//마누엘라 Beatriz//베아트리스 Júlia//줄리아",
+    fam:"Silva//실바 Santos//산투스 Oliveira//올리베이라 Souza//소자 Costa//코스타 Pereira//페레이라" },
+  { id:"US", ko:"미국", en:"the USA", lang:"en-US", langKo:"미국 영어", skin:[0,1,2,3,4,5,6],
+    m:"Liam//리엄 Noah//노아 Ethan//이선 Mason//메이슨 Logan//로건 Jayden//제이든",
+    f:"Olivia//올리비아 Emma//에마 Ava//에이바 Harper//하퍼 Madison//매디슨 Abigail//애비게일",
+    fam:"Smith//스미스 Johnson//존슨 Williams//윌리엄스 Brown//브라운 Davis//데이비스 Miller//밀러" },
+  { id:"GB", ko:"영국", en:"the UK", lang:"en-GB", langKo:"영국 영어", skin:[0,1,2,3,4,5],
+    m:"Oliver//올리버 Harry//해리 George//조지 Arthur//아서 Theo//시오 Alfie//앨피",
+    f:"Amelia//어밀리아 Isla//아일라 Ava//에이바 Lily//릴리 Freya//프레야 Poppy//포피",
+    fam:"Taylor//테일러 Evans//에번스 Wilson//윌슨 Thomas//토머스 Roberts//로버츠 Walker//워커" },
+  { id:"CA", ko:"캐나다", en:"Canada", lang:"en-CA", langKo:"캐나다 영어", skin:[0,1,2,3,4,5],
+    m:"Ethan//이선 Owen//오언 Benjamin//벤저민 Lucas//루커스 Nathan//네이선 Liam//리엄",
+    f:"Chloe//클로이 Emily//에밀리 Sophie//소피 Maya//마야 Avery//에이버리 Zoe//조이",
+    fam:"Tremblay//트랑블레 Roy//루아 Campbell//캠벨 MacDonald//맥도널드 Gagnon//가뇽 Martin//마틴" },
+  { id:"AU", ko:"호주", en:"Australia", lang:"en-AU", langKo:"호주 영어", skin:[0,1,2,3,4],
+    m:"Jack//잭 Cooper//쿠퍼 William//윌리엄 Lachlan//래클런 Hudson//허드슨 Max//맥스",
+    f:"Charlotte//샬럿 Matilda//마틸다 Ruby//루비 Isla//아일라 Chloe//클로이 Sienna//시에나",
+    fam:"Smith//스미스 Jones//존스 Kelly//켈리 Murphy//머피 Mitchell//미첼 Brown//브라운" },
 ];
+const parseNames = s => s.split(" ").map(t => { const [en, native, ko] = t.split("/"); return { en, native: native || en, ko }; });
+COUNTRIES.forEach(c => { c.m = parseNames(c.m); c.f = parseNames(c.f); c.fam = parseNames(c.fam); });
+
+// ---------- flags (drawn inline so they look the same on every computer) ----------
+function star(cx, cy, r, points = 5, rot = -90, inner = .382) {
+  const pts = [];
+  for (let i = 0; i < points * 2; i++) {
+    const a = (rot + i * 180 / points) * Math.PI / 180, rr = i % 2 ? r * inner : r;
+    pts.push(`${(cx + rr * Math.cos(a)).toFixed(2)},${(cy + rr * Math.sin(a)).toFixed(2)}`);
+  }
+  return `M${pts.join(" L")} Z`;
+}
+const unionJack = `<rect width="60" height="30" fill="#012169"/>
+  <path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" stroke-width="6"/>
+  <path d="M0,0 L60,30 M60,0 L0,30" stroke="#C8102E" stroke-width="2"/>
+  <path d="M30,0 V30 M0,15 H60" stroke="#fff" stroke-width="10"/>
+  <path d="M30,0 V30 M0,15 H60" stroke="#C8102E" stroke-width="6"/>`;
+const vbands = (w, h, cols) => cols.map((c, i) => `<rect x="${w / cols.length * i}" width="${w / cols.length + .1}" height="${h}" fill="${c}"/>`).join("");
+const hbands = (w, h, cols) => cols.map((c, i) => `<rect y="${h / cols.length * i}" width="${w}" height="${h / cols.length + .1}" fill="${c}"/>`).join("");
+function trigram(cx, cy, rot, lines) { // lines: top→bottom, true = solid bar
+  return `<g transform="translate(${cx} ${cy}) rotate(${rot})" fill="#000">` + lines.map((solid, i) => {
+    const y = (i - 1) * 1.15 - .4;
+    return solid ? `<rect x="-2.5" y="${y}" width="5" height=".8"/>`
+                 : `<rect x="-2.5" y="${y}" width="2.2" height=".8"/><rect x=".3" y="${y}" width="2.2" height=".8"/>`;
+  }).join("") + `</g>`;
+}
+const FLAGS = {
+  KR: [30, 20, `<rect width="30" height="20" fill="#fff"/>
+    <g transform="rotate(33.69 15 10)"><circle cx="15" cy="10" r="5" fill="#0047A0"/>
+    <path d="M10,10 A5,5 0 0 1 20,10 A2.5,2.5 0 0 0 15,10 A2.5,2.5 0 0 1 10,10 Z" fill="#CD2E3A"/></g>
+    ${trigram(9, 6, -56.3, [1,1,1])}${trigram(21, 14, -56.3, [0,0,0])}${trigram(21, 6, 56.3, [0,1,0])}${trigram(9, 14, 56.3, [1,0,1])}`],
+  JP: [30, 20, `<rect width="30" height="20" fill="#fff"/><circle cx="15" cy="10" r="6" fill="#BC002D"/>`],
+  CN: [30, 20, `<rect width="30" height="20" fill="#EE1C25"/><g fill="#FFFF00"><path d="${star(5, 5, 3)}"/>
+    <path d="${star(10, 2, 1, 5, -36)}"/><path d="${star(12, 4, 1, 5, -72)}"/><path d="${star(12, 7, 1, 5, 0)}"/><path d="${star(10, 9, 1, 5, -36)}"/></g>`],
+  VN: [30, 20, `<rect width="30" height="20" fill="#DA251D"/><path d="${star(15, 10, 6)}" fill="#FFFF00"/>`],
+  IN: [30, 20, `${hbands(30, 20, ["#FF9933", "#FFFFFF", "#138808"])}<circle cx="15" cy="10" r="2.6" fill="none" stroke="#000080" stroke-width=".55"/>
+    <circle cx="15" cy="10" r=".6" fill="#000080"/>
+    <path d="${Array.from({ length: 12 }, (_, i) => { const a = i * Math.PI / 6; return `M15,10 L${(15 + 2.5 * Math.cos(a)).toFixed(2)},${(10 + 2.5 * Math.sin(a)).toFixed(2)}`; }).join(" ")}" stroke="#000080" stroke-width=".25"/>`],
+  EG: [30, 20, `${hbands(30, 20, ["#CE1126", "#FFFFFF", "#000000"])}<path d="M15,7.6 L16.6,9 L16.1,12.4 L15,11.8 L13.9,12.4 L13.4,9 Z" fill="#C09300"/>`],
+  NG: [40, 20, vbands(40, 20, ["#008751", "#FFFFFF", "#008751"])],
+  FR: [30, 20, vbands(30, 20, ["#0055A4", "#FFFFFF", "#EF4135"])],
+  DE: [50, 30, hbands(50, 30, ["#000000", "#DD0000", "#FFCE00"])],
+  ES: [30, 20, `<rect width="30" height="20" fill="#AA151B"/><rect y="5" width="30" height="10" fill="#F1BF00"/>
+    <rect x="7" y="7.5" width="3.6" height="5" rx="1.2" fill="#AA151B" opacity=".85"/>`],
+  IT: [30, 20, vbands(30, 20, ["#009246", "#FFFFFF", "#CE2B37"])],
+  MX: [35, 20, `${vbands(35, 20, ["#006847", "#FFFFFF", "#CE1126"])}<circle cx="17.5" cy="10" r="2.4" fill="#8C5A2B" opacity=".9"/>
+    <path d="M15.3,11.6 Q17.5,13.4 19.7,11.6" stroke="#006847" stroke-width=".6" fill="none"/>`],
+  BR: [30, 21, `<rect width="30" height="21" fill="#009C3B"/><path d="M15,2.2 L27.8,10.5 L15,18.8 L2.2,10.5 Z" fill="#FFDF00"/>
+    <circle cx="15" cy="10.5" r="5.2" fill="#002776"/><path d="M10,9.6 Q15,8.4 19.9,11.6" stroke="#fff" stroke-width=".8" fill="none"/>`],
+  US: [38, 20, `${Array.from({ length: 13 }, (_, i) => `<rect y="${(i * 20 / 13).toFixed(3)}" width="38" height="${(20 / 13 + .05).toFixed(3)}" fill="${i % 2 ? "#FFFFFF" : "#B22234"}"/>`).join("")}
+    <rect width="15.2" height="10.77" fill="#3C3B6E"/>
+    <g fill="#fff">${Array.from({ length: 9 }, (_, r) => Array.from({ length: r % 2 ? 5 : 6 }, (_, k) =>
+      `<circle cx="${((r % 2 ? 2.53 : 1.27) + k * 2.53).toFixed(2)}" cy="${(1.08 + r * 1.077).toFixed(2)}" r=".38"/>`).join("")).join("")}</g>`],
+  GB: [60, 30, unionJack],
+  CA: [40, 20, `${vbands(40, 20, ["#D80621", "#FFFFFF", "#FFFFFF", "#D80621"])}
+    <path d="M20,3 L21.3,5.6 L23,4.8 L22.4,8.6 L25,6.4 L25.6,7.8 L28,7.2 L27,10 L28.2,10.6 L24.4,13.6 L24.8,15 L20.6,14.4 L20.6,17.5 L19.4,17.5 L19.4,14.4 L15.2,15 L15.6,13.6 L11.8,10.6 L13,10 L12,7.2 L14.4,7.8 L15,6.4 L17.6,8.6 L17,4.8 L18.7,5.6 Z" fill="#D80621"/>`],
+  AU: [60, 30, `<rect width="60" height="30" fill="#012169"/><g transform="scale(.5)">${unionJack}</g>
+    <g fill="#fff"><path d="${star(15, 22.5, 3.2, 7)}"/><path d="${star(45, 25, 1.6, 7)}"/><path d="${star(38.5, 13.5, 1.6, 7)}"/>
+    <path d="${star(45, 5.5, 1.6, 7)}"/><path d="${star(51, 11.5, 1.6, 7)}"/><path d="${star(48, 16.5, .9, 5)}"/></g>`],
+};
+function flagSvg(id, h = 22) {
+  const [w, vh, body] = FLAGS[id];
+  return `<svg class="flag" width="${Math.round(h * w / vh)}" height="${h}" viewBox="0 0 ${w} ${vh}" role="img" aria-label="${id} flag" preserveAspectRatio="none">${body}</svg>`;
+}
 
 // ---------- looks ----------
 const SKIN = [ // [base, shade]
-  ["#f8dcc8","#e8bfa6"], ["#f1c9a5","#dcaa82"], ["#e2b086","#c8926a"], ["#c98e62","#ab734b"],
-  ["#a86f45","#8c5733"], ["#8a5634","#6f4227"], ["#5f3a24","#4a2b19"],
+  ["#f6d7c3","#e3b79c"], ["#eec39f","#d6a27c"], ["#dcaa80","#c08a62"], ["#c48a5e","#a46d45"],
+  ["#a46c44","#865231"], ["#86553a","#6a3f27"], ["#5d3a26","#462a1a"],
 ];
-const HAIR = ["#1d1a19", "#3a2a22", "#5e3c26", "#8a5a33", "#c9a063", "#9a4a2a"]; // black → red
-const EYES = ["#3b2a20", "#5b3d26", "#6e6238", "#4f7550", "#4b74a3", "#76838f"];
-const BACKDROP = [["#dfe8f1","#c9d6e4"], ["#e9e3f1","#d6cde6"], ["#f1e6dc","#e2d1c1"], ["#e0ece2","#c9dccd"], ["#eeeadf","#ddd6c4"]];
-const UNIFORM = [ // [blazer, lapel, tie]
-  ["#24334f","#1b273d","#9b2c2c"], ["#2e4a3c","#233a2f","#b8862b"], ["#4b2734","#3a1d28","#2f4a7a"], ["#55585f","#43464c","#2f6f8a"],
+const HAIR = ["#1c1917", "#38291f", "#5a3a25", "#86572f", "#c49a5c", "#94462a"]; // black → red
+const EYES = ["#3a2a1f", "#5a3c24", "#6c6136", "#4e7450", "#4a72a0", "#74828e"];
+const BACKDROP = [["#e3e9ef","#b9c6d3"], ["#ebe6ef","#c7bdd3"], ["#efe7de","#cfbfac"], ["#e3ebe4","#b9cbbd"], ["#ecebe7","#c9c6bd"]];
+const UNIFORM = [ // [blazer, tie]
+  ["#22304a","#8e2a2a"], ["#2c4638","#b08229"], ["#47252f","#2f4a7a"], ["#4f5258","#2f6f8a"],
 ];
 const STYLES = { M: ["short","side","buzz","curly"], F: ["long","bob","bun","curlyLong"] };
 
@@ -217,20 +289,22 @@ const rand = (a, b) => Math.random() * (b - a) + a;
 const randInt = (a, b) => Math.floor(rand(a, b + 1));
 const round = (v, d) => +v.toFixed(d);
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-function mix(hex, amt) { // amt > 0 lightens, < 0 darkens
-  const n = parseInt(hex.slice(1), 16), t = amt < 0 ? 0 : 255, p = Math.abs(amt);
-  const c = [n >> 16, (n >> 8) & 255, n & 255].map(x => Math.round((t - x) * p + x));
-  return "#" + c.map(x => x.toString(16).padStart(2, "0")).join("");
-}
+const hex2rgb = h => { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+const rgb2hex = c => "#" + c.map(x => Math.round(x).toString(16).padStart(2, "0")).join("");
+const blend = (a, b, t) => { const x = hex2rgb(a), y = hex2rgb(b); return rgb2hex(x.map((v, i) => v + (y[i] - v) * t)); };
+const mix = (h, amt) => blend(h, amt < 0 ? "#000000" : "#ffffff", Math.abs(amt)); // amt > 0 lightens, < 0 darkens
 
 function makeName(c, gender, avoid) {
   for (let i = 0; i < 30; i++) {
     const g = pick(gender === "M" ? c.m : c.f), fam = pick(c.fam);
-    const en = `${g[0]} ${fam[0]}`;
+    const en = `${g.en} ${fam.en}`;
     if (en === avoid) continue;
-    const gn = g[1] || g[0], fn = fam[1] || fam[0];
-    const native = c.order === "family" ? fn + c.sep + gn : gn + " " + fn;
-    return { en, native };
+    const familyFirst = c.order === "family";
+    return {
+      en,
+      native: familyFirst ? fam.native + c.sep + g.native : `${g.native} ${fam.native}`,
+      ko: familyFirst ? fam.ko + (c.koSep ?? " ") + g.ko : `${g.ko} ${fam.ko}`,
+    };
   }
 }
 
@@ -259,83 +333,176 @@ function makeStudent(countryId) {
 }
 
 // ---------- portrait ----------
+// Soft studio-photo style: light comes from the upper left, so shadows fall on the right side.
+const FACE = "M96,136 C96,90 121,70 150,70 C179,70 204,90 204,136 C204,170 196,196 180,212 C170,221 160,226 150,226 C140,226 130,221 120,212 C104,196 96,170 96,136 Z";
+const BACK_HAIR = {
+  long: `<path d="M86,138 C80,78 116,52 150,52 C184,52 220,78 214,138 C218,190 226,250 224,300 L76,300 C74,250 82,190 86,138 Z"/>`,
+  bob:  `<path d="M84,138 C80,80 114,54 150,54 C186,54 220,80 216,138 C218,170 220,198 214,224 C188,232 112,232 86,224 C80,198 82,170 84,138 Z"/>`,
+  bun:  `<circle cx="150" cy="54" r="25"/>`,
+};
+const FRONT_HAIR = {
+  short: "M92,142 C86,92 112,62 152,62 C192,62 216,92 208,142 C204,118 196,102 184,96 C164,106 128,106 112,98 C102,108 96,122 92,142 Z",
+  side:  "M92,140 C88,90 116,60 154,60 C192,60 214,90 208,140 C204,114 194,98 180,92 C160,96 132,92 122,82 C110,98 98,116 92,140 Z",
+  buzz:  "M95,130 C97,84 122,66 150,66 C178,66 203,84 205,130 C196,102 177,88 150,88 C123,88 104,102 95,130 Z",
+  curly: "M94,130 C94,90 120,70 150,70 C180,70 206,90 206,130 C196,104 178,92 150,92 C122,92 104,104 94,130 Z",
+  long:  "M92,138 C90,88 118,60 152,60 C186,60 212,88 208,140 C202,114 188,98 168,92 C150,104 120,108 100,112 C96,120 93,128 92,138 Z",
+  bob:   "M92,128 C92,82 118,60 150,60 C182,60 208,82 208,128 C200,123 192,120 182,119 C160,116 140,116 118,119 C108,120 100,123 92,128 Z",
+  bun:   "M92,140 C88,88 118,62 150,62 C182,62 212,88 208,140 C200,108 180,90 150,88 C120,90 100,108 92,140 Z",
+  curlyLong: "M94,132 C94,90 120,70 150,70 C180,70 206,90 206,132 C196,106 178,94 150,94 C122,94 104,106 94,132 Z",
+};
+const CURLS = {
+  curlyBack: [[96,112],[102,84],[124,62],[150,54],[176,62],[198,84],[204,112]],
+  curlyLongBack: [[94,112],[102,82],[124,60],[150,52],[176,60],[198,82],[206,112],[88,150],[212,150],[86,190],[214,190],[92,228],[208,228],[100,262],[200,262]],
+  front: [[102,114],[110,93],[126,80],[144,74],[162,75],[178,82],[192,94],[199,113]],
+};
+
 let seq = 0;
 function portrait(s) {
-  const L = s.look, id = "p" + (++seq);
-  const [skin, skinShade] = SKIN[L.skin];
-  const hair = HAIR[L.hair], hairHi = mix(hair, .22), hairLo = mix(hair, -.25);
+  const L = s.look, p = "p" + (++seq), u = n => `url(#${p}${n})`;
+  const [skin, shade] = SKIN[L.skin], deep = mix(shade, -.22), light = mix(skin, .14);
+  const hair = HAIR[L.hair], hairHi = mix(hair, L.hair >= 4 ? .3 : .28), hairLo = mix(hair, -.3);
   const eye = EYES[L.eye];
   const [bg1, bg2] = BACKDROP[L.backdrop];
-  const [blazer, lapel, tie] = UNIFORM[L.uniform];
-  const brow = mix(hair, L.hair >= 4 ? -.25 : 0);
-  const lip = mix(skinShade, -.18);
+  const [blazer, tie] = UNIFORM[L.uniform];
+  const lip = blend(shade, "#c25d63", L.skin >= 5 ? .18 : .32), lipDark = mix(lip, -.18);
+  const brow = L.hair >= 4 ? mix(hair, -.25) : hair;
 
-  const curls = (pts, r) => pts.map(([x, y]) => `<circle cx="${x}" cy="${y}" r="${r}"/>`).join("");
-  const back = {
-    long: `<path d="M86,138 C80,78 116,52 150,52 C184,52 220,78 214,138 C218,190 226,250 224,300 L76,300 C74,250 82,190 86,138 Z"/>`,
-    bob: `<path d="M84,138 C80,80 114,54 150,54 C186,54 220,80 216,138 C218,170 220,198 216,222 C190,230 110,230 84,222 C80,198 82,170 84,138 Z"/>`,
-    bun: `<circle cx="150" cy="52" r="26"/>`,
-    curly: curls([[96,112],[102,84],[124,62],[150,54],[176,62],[198,84],[204,112]], 22),
-    curlyLong: curls([[94,112],[102,82],[124,60],[150,52],[176,60],[198,82],[206,112],[88,150],[212,150],[86,190],[214,190],[92,228],[208,228],[100,262],[200,262]], 26),
-  }[L.style] || "";
-  const front = {
-    short: `<path d="M92,142 C86,92 112,62 152,62 C192,62 216,92 208,142 C204,118 196,102 184,96 C164,106 128,106 112,98 C102,108 96,122 92,142 Z"/>`,
-    side:  `<path d="M92,140 C88,90 116,60 154,60 C192,60 214,90 208,140 C204,114 194,98 180,92 C160,96 132,92 122,82 C110,98 98,116 92,140 Z"/>`,
-    buzz:  `<path d="M95,130 C97,84 122,66 150,66 C178,66 203,84 205,130 C196,102 177,88 150,88 C123,88 104,102 95,130 Z"/>`,
-    curly: `<path d="M94,130 C94,90 120,70 150,70 C180,70 206,90 206,130 C196,104 178,92 150,92 C122,92 104,104 94,130 Z"/>` +
-           curls([[102,112],[110,92],[126,80],[144,74],[162,76],[178,82],[192,94],[199,112]], 13),
-    long:  `<path d="M92,138 C90,88 118,60 152,60 C186,60 212,88 208,140 C202,114 188,98 168,92 C150,104 120,108 100,112 C96,120 93,128 92,138 Z"/>`,
-    bob:   `<path d="M92,128 C92,82 118,60 150,60 C182,60 208,82 208,128 C200,123 192,120 182,119 C160,116 140,116 118,119 C108,120 100,123 92,128 Z"/>`,
-    bun:   `<path d="M92,140 C88,88 118,62 150,62 C182,62 212,88 208,140 C200,108 180,90 150,88 C120,90 100,108 92,140 Z"/>`,
-    curlyLong: `<path d="M94,132 C94,90 120,70 150,70 C180,70 206,90 206,132 C196,106 178,94 150,94 C122,94 104,106 94,132 Z"/>` +
-           curls([[100,116],[108,94],[124,80],[142,74],[160,74],[176,80],[192,94],[200,116]], 13),
-  }[L.style];
+  const curlSet = (pts, r) => pts.map(([x, y]) =>
+    `<circle cx="${x}" cy="${y}" r="${r}" fill="${u("hair")}"/>` +
+    `<path d="M${x - r * .55},${y - r * .15} A${r * .6},${r * .6} 0 0 1 ${x + r * .3},${y - r * .55}" stroke="${hairHi}" stroke-width="1.6" fill="none" opacity=".55"/>`).join("");
+  const isCurly = L.style === "curly" || L.style === "curlyLong";
+  const back = L.style === "curly" ? curlSet(CURLS.curlyBack, 22)
+    : L.style === "curlyLong" ? curlSet(CURLS.curlyLongBack, 26)
+    : BACK_HAIR[L.style] ? `<g fill="${u("hair")}">${BACK_HAIR[L.style]}</g>` : "";
+  // Fine strands give the hair texture; they are clipped to the hair shape.
+  const strandsFront = Array.from({ length: 15 }, (_, i) => {
+    const k = i - 7;
+    return `<path d="M${150 + k * 3},58 Q${150 + k * 12},74 ${150 + k * 10.5},${126 - Math.abs(k) * 2}" stroke="${i % 3 ? hairHi : hairLo}" stroke-width="${i % 2 ? 1 : 1.6}" fill="none" opacity="${i % 3 ? .35 : .45}"/>`;
+  }).join("");
+  const strandsBack = L.style === "long" || L.style === "bob"
+    ? Array.from({ length: 14 }, (_, i) => { const x = 84 + i * 10; return `<path d="M${x},90 Q${x + (x < 150 ? -8 : 8)},190 ${x + (x < 150 ? -4 : 4)},300" stroke="${i % 2 ? hairHi : hairLo}" stroke-width="1.2" fill="none" opacity=".35"/>`; }).join("")
+    : "";
+  const front = `<path d="${FRONT_HAIR[L.style]}" fill="${u("hair")}"/>` +
+    `<g clip-path="${u("fh")}">${strandsFront}<ellipse cx="128" cy="80" rx="26" ry="9" fill="#fff" opacity=".13" filter="${u("b4")}"/></g>` +
+    (isCurly ? curlSet(CURLS.front, 13) : "");
+
+  // One eye drawn around x=128; the right eye is the same group mirrored.
+  const eyeGroup = (mirror) => `<g${mirror ? ` transform="matrix(-1 0 0 1 300 0)"` : ""}>
+    <ellipse cx="128" cy="140" rx="16" ry="8" fill="${deep}" opacity=".16" filter="${u("b3")}"/>
+    <path d="M116,145 Q124,136.5 133,138.5 Q138,140 140,146 Q130,151.5 116,145 Z" fill="#f6f3ee"/>
+    <g clip-path="${u(mirror ? "er" : "el")}">
+      <circle cx="128.5" cy="144.5" r="5.8" fill="${u("iris")}"/>
+      <circle cx="128.5" cy="144.5" r="5.8" fill="none" stroke="${mix(eye, -.5)}" stroke-width=".9"/>
+      <circle cx="128.5" cy="144.5" r="2.5" fill="#0f0f0f"/>
+      <rect x="112" y="134" width="32" height="8" fill="#000" opacity=".18" filter="${u("b1")}"/>
+    </g>
+    <circle cx="${mirror ? 127.2 : 130}" cy="142.6" r="1.35" fill="#fff" opacity=".95"/>
+    <path d="M115,145.5 Q123,135.6 133,137.8 Q138.5,139.3 141,146" fill="none" stroke="#1a1614" stroke-width="${s.gender === "F" ? 2.6 : 2.2}" stroke-linecap="round"/>
+    <path d="M115.5,145 Q112,143.4 ${s.gender === "F" ? "109.5,139.6" : "111.5,141.8"}" fill="none" stroke="#1a1614" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M118,137.5 Q127,130.5 138,134.5" fill="none" stroke="${deep}" stroke-width="1.1" opacity=".45"/>
+    <path d="M118.5,148.2 Q128,152.2 138,148.2" fill="none" stroke="${deep}" stroke-width="1" opacity=".3"/>
+    <path d="${s.gender === "F" ? "M114,130 Q126,121.5 141,125.5 Q141.5,128 139.5,128.2 Q127,125.6 115.4,132.4 Z" : "M113,131 Q126,120.5 141.5,124.5 Q142.5,128.4 140,128.8 Q127,126 114.6,133.6 Z"}" fill="${brow}" opacity=".92"/>
+  </g>`;
 
   const mouth = L.smile === "open"
-    ? `<path d="M136,189 Q150,205 164,189 Q150,194 136,189 Z" fill="#7a2e2e"/><path d="M139,190 Q150,194 161,190 L160,193 Q150,196 140,193 Z" fill="#fff" opacity=".9"/>`
-    : `<path d="M137,190 Q150,199 163,190" fill="none" stroke="${lip}" stroke-width="3" stroke-linecap="round"/>`;
-  const lashes = s.gender === "F"
-    ? `<path d="M116,145 l-4,-3 M184,145 l4,-3" stroke="#1d1a19" stroke-width="2" stroke-linecap="round"/>` : "";
+    ? `<path d="M134,193 Q150,198 166,193 Q160,207 150,208 Q140,207 134,193 Z" fill="#5c2326"/>
+       <path d="M137,194.4 Q150,198.6 163,194.4 L161.2,199 Q150,201.6 138.8,199 Z" fill="#f4efe6"/>
+       <path d="M133,193 Q142,187.6 150,189.8 Q158,187.6 167,193 Q150,196.2 133,193 Z" fill="${lipDark}"/>
+       <path d="M137,204.5 Q150,209 163,204.5 Q158,212.4 150,212.6 Q142,212.4 137,204.5 Z" fill="${lip}"/>`
+    : `<path d="M136,195 Q143,189.6 150,191.8 Q157,189.6 164,195 Q150,197.2 136,195 Z" fill="${lipDark}"/>
+       <path d="M137,195.6 Q150,198.2 163,195.6 Q157,204.4 150,204.6 Q143,204.4 137,195.6 Z" fill="${lip}"/>
+       <path d="M134.5,194.6 Q150,199.4 165.5,194.6" fill="none" stroke="${mix(lip, -.5)}" stroke-width="1.5" stroke-linecap="round"/>
+       <ellipse cx="150" cy="200.4" rx="5.5" ry="1.6" fill="#fff" opacity=".22" filter="${u("b1")}"/>`;
+
   const neckwear = s.gender === "M"
-    ? `<path d="M144,270 L156,270 L154,282 L146,282 Z" fill="${mix(tie, -.15)}"/><path d="M146,282 L154,282 L159,322 L150,334 L141,322 Z" fill="${tie}"/>`
-    : `<path d="M150,276 L130,266 L132,288 Z M150,276 L170,266 L168,288 Z" fill="${tie}"/><circle cx="150" cy="276" r="4.5" fill="${mix(tie, -.15)}"/>`;
+    ? `<path d="M144,270 L156,270 L154.5,282 L145.5,282 Z" fill="${mix(tie, -.18)}"/>
+       <path d="M145.5,282 L154.5,282 L159,322 L150,334 L141,322 Z" fill="${tie}"/>
+       <path d="M146,290 L156,300 M144,304 L157.5,317" stroke="${mix(tie, .25)}" stroke-width="2" opacity=".55" clip-path="${u("tie")}"/>`
+    : `<path d="M150,276 L130,266.5 Q128,277 132,288 Z M150,276 L170,266.5 Q172,277 168,288 Z" fill="${tie}"/>
+       <path d="M150,276 L130,266.5 Q128,277 132,288 Z" fill="#000" opacity=".12"/>
+       <ellipse cx="150" cy="276" rx="4.6" ry="5" fill="${mix(tie, -.18)}"/>`;
+
   const glasses = L.glasses
-    ? `<g fill="#ffffff" fill-opacity=".1" stroke="#2b2b2b" stroke-width="2.4"><rect x="111" y="134" width="34" height="24" rx="9"/><rect x="155" y="134" width="34" height="24" rx="9"/></g>
-       <path d="M145,143 Q150,140 155,143" fill="none" stroke="#2b2b2b" stroke-width="2.4"/>` : "";
-  const eyeShape = x => `M${x - 11},146 Q${x},137 ${x + 11},146 Q${x},152 ${x - 11},146 Z`;
+    ? `<g fill="${u("lens")}" stroke="#2a2a2a" stroke-width="2.2"><rect x="111" y="133" width="34" height="24" rx="9"/><rect x="155" y="133" width="34" height="24" rx="9"/></g>
+       <path d="M145,142.5 Q150,139.5 155,142.5 M111,140 L97,138 M189,140 L203,138" fill="none" stroke="#2a2a2a" stroke-width="2.2"/>
+       <path d="M116,152 L126,136 M160,152 L170,136" stroke="#fff" stroke-width="2.5" opacity=".25"/>` : "";
 
   return `<svg viewBox="0 0 300 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${s.en}의 사진">
   <defs>
-    <radialGradient id="${id}bg" cx="50%" cy="38%" r="75%"><stop offset="0%" stop-color="${bg1}"/><stop offset="100%" stop-color="${bg2}"/></radialGradient>
-    <radialGradient id="${id}face" cx="42%" cy="38%" r="70%"><stop offset="0%" stop-color="${mix(skin, .08)}"/><stop offset="75%" stop-color="${skin}"/><stop offset="100%" stop-color="${skinShade}"/></radialGradient>
-    <linearGradient id="${id}hair" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${hairHi}"/><stop offset="60%" stop-color="${hair}"/><stop offset="100%" stop-color="${hairLo}"/></linearGradient>
-    <linearGradient id="${id}coat" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${mix(blazer, .08)}"/><stop offset="100%" stop-color="${mix(blazer, -.12)}"/></linearGradient>
-    <clipPath id="${id}el"><path d="${eyeShape(128)}"/></clipPath>
-    <clipPath id="${id}er"><path d="${eyeShape(172)}"/></clipPath>
+    <radialGradient id="${p}bg" cx="42%" cy="34%" r="80%"><stop offset="0%" stop-color="${bg1}"/><stop offset="100%" stop-color="${bg2}"/></radialGradient>
+    <radialGradient id="${p}vig" cx="50%" cy="45%" r="70%"><stop offset="65%" stop-color="#000" stop-opacity="0"/><stop offset="100%" stop-color="#000" stop-opacity=".18"/></radialGradient>
+    <linearGradient id="${p}skin" x1="0" y1="0" x2="1" y2=".35"><stop offset="0%" stop-color="${light}"/><stop offset="55%" stop-color="${skin}"/><stop offset="100%" stop-color="${shade}"/></linearGradient>
+    <linearGradient id="${p}neck" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${deep}"/><stop offset="45%" stop-color="${shade}"/><stop offset="100%" stop-color="${skin}"/></linearGradient>
+    <linearGradient id="${p}hair" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${hairHi}"/><stop offset="45%" stop-color="${hair}"/><stop offset="100%" stop-color="${hairLo}"/></linearGradient>
+    <radialGradient id="${p}iris" cx="50%" cy="45%" r="55%"><stop offset="0%" stop-color="${mix(eye, .35)}"/><stop offset="70%" stop-color="${eye}"/><stop offset="100%" stop-color="${mix(eye, -.35)}"/></radialGradient>
+    <linearGradient id="${p}coat" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${mix(blazer, .12)}"/><stop offset="60%" stop-color="${blazer}"/><stop offset="100%" stop-color="${mix(blazer, -.3)}"/></linearGradient>
+    <linearGradient id="${p}lens" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fff" stop-opacity=".18"/><stop offset="100%" stop-color="#9fb6cc" stop-opacity=".08"/></linearGradient>
+    <filter id="${p}b1" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.2"/></filter>
+    <filter id="${p}b3" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter>
+    <filter id="${p}b4" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4.5"/></filter>
+    <filter id="${p}b8" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter>
+    <filter id="${p}grain"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>
+    <clipPath id="${p}face"><path d="${FACE}"/></clipPath>
+    <clipPath id="${p}fh"><path d="${FRONT_HAIR[L.style]}"/></clipPath>
+    <clipPath id="${p}bh">${BACK_HAIR[L.style] || ""}</clipPath>
+    <clipPath id="${p}el"><path d="M116,145 Q124,136.5 133,138.5 Q138,140 140,146 Q130,151.5 116,145 Z"/></clipPath>
+    <clipPath id="${p}er"><path d="M116,145 Q124,136.5 133,138.5 Q138,140 140,146 Q130,151.5 116,145 Z"/></clipPath>
+    <clipPath id="${p}tie"><path d="M145.5,282 L154.5,282 L159,322 L150,334 L141,322 Z"/></clipPath>
   </defs>
-  <rect width="300" height="340" fill="url(#${id}bg)"/>
-  <g fill="url(#${id}hair)">${back}</g>
-  <path d="M126,196 L126,250 Q150,266 174,250 L174,196 Z" fill="${skin}"/>
-  <path d="M126,206 Q150,234 174,206 L174,196 L126,196 Z" fill="${skinShade}" opacity=".7"/>
-  <path d="M28,340 C32,288 76,262 150,258 C224,262 268,288 272,340 Z" fill="url(#${id}coat)"/>
-  <path d="M116,256 Q150,248 184,256 L150,322 Z" fill="#fbfbf9"/>
-  <path d="M124,251 L150,268 L139,288 L113,262 Z M176,251 L150,268 L161,288 L187,262 Z" fill="#ffffff" stroke="#d9d9d4" stroke-width="1"/>
+
+  <rect width="300" height="340" fill="${u("bg")}"/>
+  <ellipse cx="190" cy="250" rx="110" ry="70" fill="#000" opacity=".12" filter="${u("b8")}"/>
+
+  ${back}
+  ${strandsBack ? `<g clip-path="${u("bh")}">${strandsBack}</g>` : ""}
+
+  <path d="M127,192 L126,250 Q150,266 174,250 L173,192 Z" fill="${u("neck")}"/>
+  <path d="M28,340 C32,288 76,262 150,258 C224,262 268,288 272,340 Z" fill="${u("coat")}"/>
+  <ellipse cx="96" cy="284" rx="40" ry="14" fill="#fff" opacity=".07" filter="${u("b4")}"/>
+  <path d="M116,256 Q150,248 184,256 L150,322 Z" fill="#f7f6f2"/>
+  <path d="M120,256 Q150,264 180,256 L176,266 Q150,272 124,266 Z" fill="#000" opacity=".08" filter="${u("b1")}"/>
+  <path d="M124,251 L150,268 L139,288 L113,262 Z M176,251 L150,268 L161,288 L187,262 Z" fill="#ffffff" stroke="#d7d6d0" stroke-width="1"/>
   ${neckwear}
-  <path d="M114,258 L150,324 L138,340 L108,340 L98,284 Z M186,258 L150,324 L162,340 L192,340 L202,284 Z" fill="${lapel}"/>
-  <ellipse cx="94" cy="152" rx="11" ry="17" fill="${skin}"/><ellipse cx="206" cy="152" rx="11" ry="17" fill="${skin}"/>
-  <ellipse cx="95" cy="152" rx="5" ry="9" fill="${skinShade}" opacity=".6"/><ellipse cx="205" cy="152" rx="5" ry="9" fill="${skinShade}" opacity=".6"/>
-  <path d="M94,138 C94,92 120,70 150,70 C180,70 206,92 206,138 C206,186 186,222 150,224 C114,222 94,186 94,138 Z" fill="url(#${id}face)"/>
-  <ellipse cx="118" cy="172" rx="11" ry="6" fill="#ff7f72" opacity=".16"/><ellipse cx="182" cy="172" rx="11" ry="6" fill="#ff7f72" opacity=".16"/>
-  <path d="${eyeShape(128)}" fill="#fbfaf7"/><path d="${eyeShape(172)}" fill="#fbfaf7"/>
-  <g clip-path="url(#${id}el)"><circle cx="128" cy="145.5" r="5.6" fill="${eye}"/><circle cx="128" cy="145.5" r="2.6" fill="#141414"/><circle cx="130" cy="143.5" r="1.3" fill="#fff"/></g>
-  <g clip-path="url(#${id}er)"><circle cx="172" cy="145.5" r="5.6" fill="${eye}"/><circle cx="172" cy="145.5" r="2.6" fill="#141414"/><circle cx="174" cy="143.5" r="1.3" fill="#fff"/></g>
-  <path d="M116,146 Q128,136 140,145 M160,145 Q172,136 184,146" fill="none" stroke="#1d1a19" stroke-width="2.2" stroke-linecap="round"/>
-  ${lashes}
-  <path d="M115,131 Q128,124 141,128 M159,128 Q172,124 185,131" fill="none" stroke="${brow}" stroke-width="${s.gender === "M" ? 4.2 : 3.2}" stroke-linecap="round"/>
-  <path d="M150,150 L146,173 Q150,178 156,175" fill="none" stroke="${skinShade}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M114,258 L150,324 L138,340 L108,340 L98,284 Z M186,258 L150,324 L162,340 L192,340 L202,284 Z" fill="${mix(blazer, -.18)}"/>
+  <path d="M114,258 L150,324 M186,258 L150,324" stroke="${mix(blazer, .25)}" stroke-width="1.2" opacity=".6"/>
+
+  <ellipse cx="92" cy="152" rx="11" ry="17" fill="${u("skin")}"/>
+  <ellipse cx="208" cy="152" rx="11" ry="17" fill="${shade}"/>
+  <path d="M90,142 Q86,152 92,163 M210,142 Q214,152 208,163" stroke="${deep}" stroke-width="1.6" fill="none" opacity=".45"/>
+
+  <path d="${FACE}" fill="${u("skin")}"/>
+  <g clip-path="${u("face")}">
+    <ellipse cx="204" cy="160" rx="24" ry="70" fill="${deep}" opacity=".32" filter="${u("b8")}"/>
+    <ellipse cx="96" cy="160" rx="14" ry="60" fill="${deep}" opacity=".14" filter="${u("b8")}"/>
+    <ellipse cx="150" cy="232" rx="48" ry="14" fill="${deep}" opacity=".35" filter="${u("b4")}"/>
+    <ellipse cx="150" cy="${L.style === "bob" ? 122 : 96}" rx="58" ry="16" fill="${deep}" opacity=".38" filter="${u("b4")}"/>
+    <ellipse cx="136" cy="${L.style === "bob" ? 132 : 108}" rx="20" ry="9" fill="#fff" opacity=".16" filter="${u("b4")}"/>
+    <ellipse cx="121" cy="164" rx="13" ry="8" fill="#fff" opacity=".12" filter="${u("b4")}"/>
+    <ellipse cx="119" cy="172" rx="12" ry="7" fill="#e06d64" opacity=".13" filter="${u("b3")}"/>
+    <ellipse cx="181" cy="172" rx="12" ry="7" fill="#e06d64" opacity=".11" filter="${u("b3")}"/>
+    <ellipse cx="150" cy="217" rx="9" ry="5" fill="#fff" opacity=".13" filter="${u("b3")}"/>
+  </g>
+
+  ${eyeGroup(false)}
+  ${eyeGroup(true)}
+
+  <path d="M155,148 Q157.5,163 159.5,173" stroke="${deep}" stroke-width="5" fill="none" opacity=".28" filter="${u("b3")}"/>
+  <path d="M149,146 L148.5,168" stroke="#fff" stroke-width="3" fill="none" opacity=".16" filter="${u("b1")}"/>
+  <ellipse cx="149.5" cy="174.5" rx="6.5" ry="4.5" fill="${light}" opacity=".55" filter="${u("b1")}"/>
+  <path d="M141.5,173.5 Q139,180 145.5,181.4 M158.5,173.5 Q161,180 154.5,181.4" stroke="${deep}" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".7"/>
+  <ellipse cx="146" cy="180.6" rx="2.5" ry="1.2" fill="${mix(deep, -.35)}" opacity=".55"/>
+  <ellipse cx="154" cy="180.6" rx="2.5" ry="1.2" fill="${mix(deep, -.35)}" opacity=".55"/>
+  <ellipse cx="151" cy="185" rx="9" ry="2.6" fill="${deep}" opacity=".3" filter="${u("b1")}"/>
+  <path d="M150,185 L150,190" stroke="${deep}" stroke-width="3" opacity=".12" filter="${u("b1")}"/>
+
   ${mouth}
+  <ellipse cx="150" cy="${L.smile === "open" ? 216 : 209}" rx="10" ry="3" fill="${deep}" opacity=".3" filter="${u("b1")}"/>
+
   ${glasses}
-  <g fill="url(#${id}hair)">${front}</g>
+  ${front}
+
+  <rect width="300" height="340" fill="${u("vig")}"/>
+  <rect width="300" height="340" filter="${u("grain")}" opacity=".05"/>
 </svg>`;
 }
 
@@ -365,12 +532,17 @@ const countryOf = s => COUNTRIES.find(x => x.id === s.country);
 function render() {
   const c = countryOf(student);
   $("photo").innerHTML = portrait(student);
+  $("nameFlag").innerHTML = flagSvg(c.id, 26);
   $("name").textContent = student.en;
-  $("native").textContent = student.native !== student.en ? student.native : "";
+  const readings = [];
+  if (student.native !== student.en && student.native.replace(/\s/g, "") !== student.ko.replace(/\s/g, ""))
+    readings.push([`${c.langKo.replace(/^(미국|영국|캐나다|호주|나이지리아) /, "")} 표기`, student.native]);
+  readings.push(["한국어 표기", student.ko]);
+  $("readings").innerHTML = readings.map(([l, v]) => `<div class="reading"><span class="lbl">${l}</span><span class="val" dir="auto">${v}</span></div>`).join("");
   $("langLabel").textContent = `(${c.langKo})`;
   $("note").textContent = "";
   const rows = [
-    { ko:"국적", en:"Nationality", v:`${c.flag} ${c.ko} (${c.en.replace(/^the /, "")})` },
+    { ko:"국적", en:"Nationality", v:`${flagSvg(c.id, 20)}<span>${c.ko} (${c.en.replace(/^the /, "")})</span>` },
     { ko:"성별", en:"Gender", v: student.gender === "M" ? "남자 (Boy)" : "여자 (Girl)" },
     ...STATS.map(t => ({ ko:t.ko, en:t.en, v:t.fmt(student[t.key]) })),
   ];
@@ -379,7 +551,7 @@ function render() {
 }
 
 $("countrySel").innerHTML = `<option value="">무작위 (Random)</option>` +
-  COUNTRIES.map(c => `<option value="${c.id}">${c.flag} ${c.ko}</option>`).join("");
+  COUNTRIES.map(c => `<option value="${c.id}">${c.ko}</option>`).join("");
 $("newBtn").onclick = () => { student = makeStudent($("countrySel").value); render(); };
 $("countrySel").onchange = () => $("newBtn").click();
 $("renameBtn").onclick = () => { Object.assign(student, makeName(countryOf(student), student.gender, student.en)); render(); };
