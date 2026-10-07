@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Friend Compare</title>
+<style>
+  :root {
+    --bg: #f6f4ff; --card: #ffffff; --ink: #24213a; --muted: #6b6785;
+    --accent: #6c4cf5; --accent-soft: #ece7ff; --good: #1f9d6b; --bad: #d64545;
+    --line: #e2def3; --shadow: 0 4px 16px rgba(60, 40, 140, .08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17152a; --card: #221f3a; --ink: #f1eefe; --muted: #a9a4c7;
+      --accent: #9b85ff; --accent-soft: #2f2a52; --line: #3a3560; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif; }
+  header { padding: 20px 16px 8px; text-align: center; }
+  header h1 { margin: 0; font-size: 1.6rem; }
+  header p { margin: 4px 0 0; color: var(--muted); }
+  nav { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; padding: 12px 16px; position: sticky; top: 0; background: var(--bg); z-index: 5; }
+  nav button { border: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 10px 14px; border-radius: 999px; font-size: 1rem; cursor: pointer; }
+  nav button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  main { max-width: 960px; margin: 0 auto; padding: 8px 16px 48px; }
+  section { display: none; }
+  section.active { display: block; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; box-shadow: var(--shadow); margin-bottom: 16px; }
+  h2 { margin: 0 0 12px; font-size: 1.25rem; }
+  label { display: block; font-weight: 600; margin: 12px 0 6px; }
+  input[type=text], select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-size: 1rem; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips button { font-size: 1.6rem; width: 52px; height: 52px; border-radius: 12px; border: 2px solid var(--line); background: var(--bg); cursor: pointer; }
+  .chips button.sel { border-color: var(--accent); background: var(--accent-soft); }
+  .btn { background: var(--accent); color: #fff; border: 0; padding: 12px 18px; border-radius: 12px; font-size: 1rem; cursor: pointer; font-weight: 600; }
+  .btn.ghost { background: var(--accent-soft); color: var(--accent); }
+  .btn.small { padding: 6px 10px; font-size: .85rem; }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .friends { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+  .friend { background: var(--card); border: 2px solid var(--line); border-radius: 16px; padding: 14px; text-align: center; cursor: pointer; position: relative; }
+  .friend.sel { border-color: var(--accent); background: var(--accent-soft); }
+  .friend .ava { font-size: 3rem; line-height: 1.1; }
+  .friend .nm { font-weight: 700; font-size: 1.1rem; margin: 4px 0; }
+  .friend .st { font-size: .82rem; color: var(--muted); line-height: 1.5; }
+  .friend .del { position: absolute; top: 6px; right: 8px; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 1rem; }
+  .stat { display: flex; justify-content: space-between; font-size: .95rem; }
+  .speech { background: var(--accent-soft); border-radius: 14px; padding: 14px 16px; font-size: 1.15rem; line-height: 1.6; }
+  .sentence { font-size: 1.4rem; font-weight: 700; margin: 6px 0; }
+  .sentence b { color: var(--accent); }
+  .ko { color: var(--muted); font-size: .95rem; }
+  .vs { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; }
+  .vs .mid { font-weight: 800; color: var(--muted); }
+  .bar { height: 12px; background: var(--line); border-radius: 6px; overflow: hidden; margin-top: 6px; }
+  .bar > i { display: block; height: 100%; background: var(--accent); border-radius: 6px; }
+  .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
+  .opts button { padding: 14px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--ink); font-size: 1.1rem; cursor: pointer; }
+  .opts button.right { border-color: var(--good); background: color-mix(in srgb, var(--good) 15%, var(--card)); }
+  .opts button.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 15%, var(--card)); }
+  .fb { min-height: 1.6em; font-weight: 700; margin-top: 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+  th { color: var(--muted); font-weight: 600; font-size: .9rem; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); font-size: .8rem; font-weight: 700; }
+  .muted { color: var(--muted); }
+  .flex { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .score { font-size: 1.1rem; font-weight: 700; }
+  @media (max-width: 560px) { .vs { grid-template-columns: 1fr; } .vs .mid { text-align: center; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>🤖 My AI Friend &amp; Comparison</h1>
+  <p>AI 친구를 만들고, 친구들끼리 비교하며 비교 표현을 익혀요</p>
+</header>
+<nav>
+  <button data-tab="make" class="active">① 친구 만들기</button>
+  <button data-tab="gallery">② 친구 목록</button>
+  <button data-tab="compare">③ 비교하기</button>
+  <button data-tab="quiz">④ 퀴즈</button>
+  <button data-tab="rules">📘 표현 정리</button>
+</nav>
+<main>
+
+<!-- 1. MAKE -->
+<section id="make" class="active">
+  <div class="row">
+    <div class="card">
+      <h2>내 AI 친구 만들기</h2>
+      <label for="fName">이름 (Name)</label>
+      <input id="fName" type="text" maxlength="14" placeholder="예: Robo, Luna, Max">
+      <label>모습 고르기 (Look)</label>
+      <div class="chips" id="avatars"></div>
+      <label>성격 (Personality)</label>
+      <select id="fPersonality"></select>
+      <label>좋아하는 것 (I like ...)</label>
+      <select id="fLike"></select>
+      <div id="sliders"></div>
+      <div class="flex" style="margin-top:16px">
+        <button class="btn" id="saveBtn">친구 저장하기</button>
+        <button class="btn ghost" id="randBtn">🎲 랜덤</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>미리보기</h2>
+      <div class="friend" style="cursor:default">
+        <div class="ava" id="pAva">🤖</div>
+        <div class="nm" id="pName">?</div>
+        <div class="st" id="pStats"></div>
+      </div>
+      <label>자기소개 (Self-introduction)</label>
+      <div class="speech" id="pIntro"></div>
+      <div class="flex" style="margin-top:10px">
+        <button class="btn ghost small" id="introSpeak">🔊 듣기</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. GALLERY -->
+<section id="gallery">
+  <div class="card">
+    <h2>우리 반 AI 친구들</h2>
+    <p class="muted">카드를 눌러 자기소개를 들어보세요. 친구 코드로 다른 기기와 친구를 주고받을 수 있어요.</p>
+    <div class="friends" id="friendList"></div>
+  </div>
+  <div class="card" id="introCard" style="display:none">
+    <div class="speech" id="gIntro"></div>
+    <div class="flex" style="margin-top:10px">
+      <button class="btn ghost small" id="gSpeak">🔊 듣기</button>
+      <button class="btn ghost small" id="gCode">📋 친구 코드 복사</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>친구 코드로 불러오기</h2>
+    <div class="flex">
+      <input id="codeIn" type="text" placeholder="친구 코드를 붙여넣으세요" style="flex:1;min-width:180px">
+      <button class="btn" id="codeLoad">불러오기</button>
+    </div>
+    <div class="fb" id="codeFb"></div>
+    <button class="btn ghost small" id="resetBtn" style="margin-top:8px">기본 친구로 초기화</button>
+  </div>
+</section>
+
+<!-- 3. COMPARE -->
+<section id="compare">
+  <div class="card">
+    <h2>두 친구 비교하기</h2>
+    <div class="row">
+      <div><label for="cA">친구 A</label><select id="cA"></select></div>
+      <div><label for="cB">친구 B</label><select id="cB"></select></div>
+      <div><label for="cT">무엇을 비교할까요?</label><select id="cT"></select></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="vs" id="vsBox"></div>
+  </div>
+  <div class="card">
+    <p class="muted" style="margin:0 0 4px">Q.</p>
+    <div class="sentence" id="cQ"></div>
+    <p class="muted" style="margin:14px 0 4px">A.</p>
+    <div id="cSentences"></div>
+    <div class="flex" style="margin-top:12px">
+      <button class="btn ghost small" id="cSpeak">🔊 듣기</button>
+    </div>
+  </div>
+</section>
+
+<!-- 4. QUIZ -->
+<section id="quiz">
+  <div class="card">
+    <div class="flex" style="justify-content:space-between">
+      <h2 style="margin:0">비교 표현 퀴즈</h2>
+      <span class="score" id="qScore">0 / 0</span>
+    </div>
+    <div class="flex" style="margin-top:10px">
+      <label style="margin:0"><input type="radio" name="qmode" value="who" checked> 누가 더 ~할까?</label>
+      <label style="margin:0"><input type="radio" name="qmode" value="word"> 빈칸 채우기</label>
+      <label style="margin:0"><input type="radio" name="qmode" value="ox"> O / X</label>
+    </div>
+  </div>
+  <div class="card">
+    <div class="vs" id="qVs"></div>
+  </div>
+  <div class="card">
+    <div class="sentence" id="qText"></div>
+    <div class="opts" id="qOpts"></div>
+    <div class="fb" id="qFb"></div>
+    <div class="flex"><button class="btn" id="qNext">다음 문제 ▶</button></div>
+  </div>
+</section>
+
+<!-- 5. RULES -->
+<section id="rules">
+  <div class="card">
+    <h2>비교 표현 만들기 규칙</h2>
+    <table>
+      <tr><th>규칙</th><th>원래 형태</th><th>비교급</th></tr>
+      <tr><td><span class="tag">+er</span> 대부분</td><td>tall, short, old, fast, strong, long</td><td>taller, shorter, older, faster, stronger, longer</td></tr>
+      <tr><td><span class="tag">+r</span> e로 끝나면</td><td>large, cute, wise</td><td>larger, cuter, wiser</td></tr>
+      <tr><td><span class="tag">y→ier</span></td><td>heavy, funny, happy, busy</td><td>heavier, funnier, happier, busier</td></tr>
+      <tr><td><span class="tag">자음 한 번 더</span></td><td>big, hot, thin</td><td>bigger, hotter, thinner</td></tr>
+      <tr><td><span class="tag">more</span> 긴 단어</td><td>beautiful, famous, popular</td><td>more beautiful, more famous, more popular</td></tr>
+      <tr><td><span class="tag">불규칙</span></td><td>good, bad, many</td><td>better, worse, more</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h2>문장 틀</h2>
+    <div class="speech">
+      <b>Who is taller, Robo or Luna?</b><br>
+      → <b>Robo is taller than Luna.</b><br>
+      → <b>Luna is shorter than Robo.</b><br><br>
+      <b>Which is faster?</b> → <b>Max is faster.</b><br>
+      <b>Are you taller than me?</b> → <b>Yes, I am. / No, I'm not.</b>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+// ---------- data ----------
+const AVATARS = ["🤖","👾","🦊","🐼","🐯","🐰","🦄","🐲","🐧","🐱","👽","🦖"];
+const PERSONALITIES = [
+  ["kind","친절한"],["funny","재미있는"],["brave","용감한"],["smart","똑똑한"],["shy","수줍은"],["cheerful","명랑한"]
+];
+const LIKES = [
+  ["soccer","축구"],["music","음악"],["games","게임"],["books","책"],["dancing","춤"],["cooking","요리"],["drawing","그림 그리기"]
+];
+// Each trait: value key, unit, range, the "more" and "less" comparatives, question word, Korean.
+const TRAITS = [
+  { key:"height", label:"키", unit:"cm", min:80, max:220, more:"taller", less:"shorter", adjM:"tall", adjL:"short",
+    koM:"키가 더 커요", koL:"키가 더 작아요", intro:v=>`I'm ${v} cm tall.` },
+  { key:"age", label:"나이", unit:"years old", min:1, max:300, more:"older", less:"younger", adjM:"old", adjL:"young",
+    koM:"나이가 더 많아요", koL:"나이가 더 어려요", intro:v=>`I'm ${v} years old.` },
+  { key:"speed", label:"달리기 속도", unit:"km/h", min:5, max:120, more:"faster", less:"slower", adjM:"fast", adjL:"slow",
+    koM:"더 빨라요", koL:"더 느려요", intro:v=>`I can run ${v} km per hour.` },
+  { key:"weight", label:"몸무게", unit:"kg", min:10, max:300, more:"heavier", less:"lighter", adjM:"heavy", adjL:"light",
+    koM:"더 무거워요", koL:"더 가벼워요", intro:v=>`I weigh ${v} kg.` },
+  { key:"strength", label:"힘", unit:"/ 10", min:1, max:10, more:"stronger", less:"weaker", adjM:"strong", adjL:"weak",
+    koM:"힘이 더 세요", koL:"힘이 더 약해요", intro:v=>`My strength is ${v} out of 10.` },
+  { key:"size", label:"크기 (몸집)", unit:"/ 10", min:1, max:10, more:"bigger", less:"smaller", adjM:"big", adjL:"small",
+    koM:"더 커요", koL:"더 작아요", intro:v=>`My size is ${v} out of 10.` },
+];
+const DEFAULT_FRIENDS = [
+  { name:"Robo", ava:"🤖", personality:"smart", like:"games", height:150, age:12, speed:30, weight:80, strength:8, size:6 },
+  { name:"Luna", ava:"🦄", personality:"kind", like:"music", height:135, age:9, speed:45, weight:40, strength:4, size:5 },
+  { name:"Max",  ava:"🐯", personality:"brave", like:"soccer", height:170, age:15, speed:60, weight:95, strength:9, size:8 },
+  { name:"Pico", ava:"🐧", personality:"funny", like:"dancing", height:95, age:5, speed:12, weight:22, strength:3, size:2 },
+];
+
+// ---------- storage (best effort) ----------
+const STORE = "aiFriendCompare.v1";
+function load() {
+  try { const v = JSON.parse(localStorage.getItem(STORE)); if (Array.isArray(v) && v.length) return v; } catch (e) {}
+  return structuredClone(DEFAULT_FRIENDS);
+}
+function save() { try { localStorage.setItem(STORE, JSON.stringify(friends)); } catch (e) {} }
+let friends = load();
+
+// ---------- helpers ----------
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const rand = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const shuffle = arr => arr.map(v => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map(v => v[1]);
+const kv = (list, k) => (list.find(x => x[0] === k) || list[0]);
+
+function speak(text) {
+  if (!("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text.replace(/<[^>]+>/g, ""));
+  u.lang = "en-US"; u.rate = 0.9;
+  speechSynthesis.speak(u);
+}
+
+function introText(f) {
+  const p = kv(PERSONALITIES, f.personality)[0], l = kv(LIKES, f.like)[0];
+  const article = /^[aeiou]/.test(p) ? "an" : "a";
+  return [`Hi! I'm ${f.name}.`, `I'm ${article} ${p} AI friend.`, ...TRAITS.map(t => t.intro(f[t.key])), `I like ${l}.`, `Nice to meet you!`].join(" ");
+}
+function statsHtml(f) {
+  return TRAITS.map(t => `${t.label}: ${f[t.key]} ${t.unit}`).join("<br>");
+}
+
+// ---------- tabs ----------
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("active", x === b));
+  document.querySelectorAll("section").forEach(s => s.classList.toggle("active", s.id === b.dataset.tab));
+  if (b.dataset.tab === "gallery") renderGallery();
+  if (b.dataset.tab === "compare") renderCompareSelects();
+  if (b.dataset.tab === "quiz" && !quiz.current) nextQuestion();
+});
+
+// ---------- make ----------
+const draft = { name:"", ava:AVATARS[0], personality:PERSONALITIES[0][0], like:LIKES[0][0] };
+TRAITS.forEach(t => draft[t.key] = Math.round((t.min + t.max) / 2));
+
+$("avatars").innerHTML = AVATARS.map(a => `<button type="button" data-a="${a}">${a}</button>`).join("");
+$("avatars").onclick = e => { const a = e.target.closest("button")?.dataset.a; if (a) { draft.ava = a; renderDraft(); } };
+$("fPersonality").innerHTML = PERSONALITIES.map(([en, ko]) => `<option value="${en}">${en} (${ko})</option>`).join("");
+$("fLike").innerHTML = LIKES.map(([en, ko]) => `<option value="${en}">${en} (${ko})</option>`).join("");
+$("sliders").innerHTML = TRAITS.map(t => `
+  <label for="s_${t.key}"><span class="stat"><span>${t.label} (${t.adjM})</span><span id="v_${t.key}"></span></span></label>
+  <input type="range" id="s_${t.key}" min="${t.min}" max="${t.max}">`).join("");
+
+$("fName").oninput = e => { draft.name = e.target.value.trim(); renderDraft(); };
+$("fPersonality").onchange = e => { draft.personality = e.target.value; renderDraft(); };
+$("fLike").onchange = e => { draft.like = e.target.value; renderDraft(); };
+TRAITS.forEach(t => $("s_" + t.key).oninput = e => { draft[t.key] = +e.target.value; renderDraft(); });
+
+function renderDraft() {
+  document.querySelectorAll("#avatars button").forEach(b => b.classList.toggle("sel", b.dataset.a === draft.ava));
+  $("fName").value = draft.name;
+  $("fPersonality").value = draft.personality;
+  $("fLike").value = draft.like;
+  TRAITS.forEach(t => { $("s_" + t.key).value = draft[t.key]; $("v_" + t.key).textContent = `${draft[t.key]} ${t.unit}`; });
+  const f = { ...draft, name: draft.name || "???" };
+  $("pAva").textContent = f.ava;
+  $("pName").textContent = f.name;
+  $("pStats").innerHTML = statsHtml(f);
+  $("pIntro").textContent = introText(f);
+}
+$("randBtn").onclick = () => {
+  draft.ava = pick(AVATARS);
+  draft.personality = pick(PERSONALITIES)[0];
+  draft.like = pick(LIKES)[0];
+  TRAITS.forEach(t => draft[t.key] = rand(t.min, t.max));
+  if (!draft.name) draft.name = pick(["Zippy","Bolt","Mochi","Nova","Tori","Kiki","Byte","Sunny"]);
+  renderDraft();
+};
+$("introSpeak").onclick = () => speak($("pIntro").textContent);
+$("saveBtn").onclick = () => {
+  if (!draft.name) { alert("친구 이름을 입력해 주세요!"); $("fName").focus(); return; }
+  if (friends.some(f => f.name.toLowerCase() === draft.name.toLowerCase())) { alert("같은 이름의 친구가 이미 있어요. 다른 이름을 써 주세요."); return; }
+  friends.push(structuredClone(draft));
+  save();
+  draft.name = ""; renderDraft();
+  document.querySelector('nav button[data-tab="gallery"]').click();
+};
+renderDraft();
+
+// ---------- gallery ----------
+let galleryPick = null;
+function renderGallery() {
+  $("friendList").innerHTML = friends.map((f, i) => `
+    <div class="friend ${galleryPick === i ? "sel" : ""}" data-i="${i}">
+      <button class="del" data-del="${i}" title="삭제">✕</button>
+      <div class="ava">${esc(f.ava)}</div>
+      <div class="nm">${esc(f.name)}</div>
+      <div class="st">${statsHtml(f)}</div>
+    </div>`).join("");
+}
+$("friendList").onclick = e => {
+  const del = e.target.closest("[data-del]");
+  if (del) {
+    const i = +del.dataset.del;
+    if (friends.length <= 2) { alert("비교하려면 친구가 2명 이상 있어야 해요."); return; }
+    if (confirm(`${friends[i].name}을(를) 삭제할까요?`)) { friends.splice(i, 1); save(); galleryPick = null; $("introCard").style.display = "none"; renderGallery(); }
+    return;
+  }
+  const card = e.target.closest(".friend");
+  if (!card) return;
+  galleryPick = +card.dataset.i;
+  $("gIntro").textContent = introText(friends[galleryPick]);
+  $("introCard").style.display = "block";
+  renderGallery();
+};
+$("gSpeak").onclick = () => speak($("gIntro").textContent);
+$("gCode").onclick = async () => {
+  const code = btoa(unescape(encodeURIComponent(JSON.stringify(friends[galleryPick]))));
+  try { await navigator.clipboard.writeText(code); $("codeFb").textContent = "친구 코드를 복사했어요!"; }
+  catch (e) { prompt("아래 코드를 복사하세요", code); }
+};
+function validFriend(f) {
+  if (!f || typeof f.name !== "string" || !f.name.trim()) return null;
+  const out = { name: f.name.trim().slice(0, 14), ava: AVATARS.includes(f.ava) ? f.ava : AVATARS[0],
+    personality: kv(PERSONALITIES, f.personality)[0], like: kv(LIKES, f.like)[0] };
+  for (const t of TRAITS) {
+    const v = Number(f[t.key]);
+    if (!Number.isFinite(v)) return null;
+    out[t.key] = Math.min(t.max, Math.max(t.min, Math.round(v)));
+  }
+  return out;
+}
+$("codeLoad").onclick = () => {
+  let f = null;
+  try { f = validFriend(JSON.parse(decodeURIComponent(escape(atob($("codeIn").value.trim()))))); } catch (e) {}
+  if (!f) { $("codeFb").textContent = "코드가 올바르지 않아요."; return; }
+  let name = f.name, n = 2;
+  while (friends.some(x => x.name.toLowerCase() === name.toLowerCase())) name = `${f.name}${n++}`;
+  f.name = name;
+  friends.push(f); save(); $("codeIn").value = ""; $("codeFb").textContent = `${f.name}을(를) 불러왔어요!`; renderGallery();
+};
+$("resetBtn").onclick = () => {
+  if (confirm("만든 친구가 모두 지워지고 기본 친구로 돌아가요. 계속할까요?")) {
+    friends = structuredClone(DEFAULT_FRIENDS); save(); galleryPick = null; $("introCard").style.display = "none"; renderGallery();
+  }
+};
+
+// ---------- compare ----------
+$("cT").innerHTML = TRAITS.map((t, i) => `<option value="${i}">${t.label} (${t.adjM} / ${t.adjL})</option>`).join("");
+function renderCompareSelects() {
+  const opts = friends.map((f, i) => `<option value="${i}">${esc(f.ava)} ${esc(f.name)}</option>`).join("");
+  const a = Math.min(+$("cA").value || 0, friends.length - 1);
+  const b = Math.min($("cB").value === "" ? 1 : +$("cB").value, friends.length - 1);
+  $("cA").innerHTML = opts; $("cB").innerHTML = opts;
+  $("cA").value = a; $("cB").value = a === b ? (a + 1) % friends.length : b;
+  renderCompare();
+}
+["cA","cB","cT"].forEach(id => $(id).onchange = renderCompare);
+
+function vsHtml(A, B, t) {
+  const pct = f => Math.max(4, Math.round((f[t.key] - t.min) / (t.max - t.min) * 100));
+  const side = f => `<div class="friend" style="cursor:default"><div class="ava">${esc(f.ava)}</div><div class="nm">${esc(f.name)}</div>
+    ${t ? `<div class="stat"><span>${t.label}</span><b>${f[t.key]} ${t.unit}</b></div><div class="bar"><i style="width:${pct(f)}%"></i></div>` : ""}</div>`;
+  return side(A) + `<div class="mid">VS</div>` + side(B);
+}
+function compareSentences(A, B, t) {
+  const a = A[t.key], b = B[t.key];
+  if (a === b) return [{ en: `${esc(A.name)} is as ${t.adjM} as ${esc(B.name)}.`, ko: `${esc(A.name)}와(과) ${esc(B.name)}는 ${t.label}이(가) 같아요.` }];
+  const [W, L] = (a > b ? [A, B] : [B, A]).map(f => ({ name: esc(f.name) }));
+  return [
+    { en: `${W.name} is <b>${t.more}</b> than ${L.name}.`, ko: `${W.name}가 ${L.name}보다 ${t.koM}.` },
+    { en: `${L.name} is <b>${t.less}</b> than ${W.name}.`, ko: `${L.name}가 ${W.name}보다 ${t.koL}.` },
+  ];
+}
+function renderCompare() {
+  const A = friends[+$("cA").value], B = friends[+$("cB").value], t = TRAITS[+$("cT").value];
+  if (!A || !B) return;
+  $("vsBox").innerHTML = vsHtml(A, B, t);
+  if (A === B) { $("cQ").textContent = "서로 다른 두 친구를 골라 주세요."; $("cSentences").innerHTML = ""; return; }
+  $("cQ").textContent = `Who is ${t.more}, ${A.name} or ${B.name}?`;
+  $("cSentences").innerHTML = compareSentences(A, B, t).map(s => `<div class="sentence">${s.en}</div><div class="ko">${s.ko}</div>`).join("");
+}
+$("cSpeak").onclick = () => speak($("cQ").textContent + " " + [...$("cSentences").querySelectorAll(".sentence")].map(e => e.textContent).join(" "));
+
+// ---------- quiz ----------
+const quiz = { right: 0, total: 0, current: null };
+const qMode = () => document.querySelector('input[name="qmode"]:checked').value;
+document.querySelectorAll('input[name="qmode"]').forEach(r => r.onchange = nextQuestion);
+
+function pickPair(t) {
+  for (let i = 0; i < 40; i++) {
+    const [A, B] = shuffle(friends).slice(0, 2);
+    if (A[t.key] !== B[t.key]) return [A, B];
+  }
+  return null;
+}
+function nextQuestion() {
+  $("qFb").textContent = "";
+  let t, pair;
+  for (const cand of shuffle(TRAITS)) { pair = pickPair(cand); if (pair) { t = cand; break; } }
+  if (!pair) { $("qText").textContent = "비교할 수 있는 친구가 부족해요. 친구를 더 만들어 주세요!"; $("qOpts").innerHTML = ""; $("qVs").innerHTML = ""; return; }
+  const [A, B] = pair;
+  const [W, L] = A[t.key] > B[t.key] ? [A, B] : [B, A];
+  const useMore = Math.random() < 0.5;
+  const word = useMore ? t.more : t.less;
+  const winner = useMore ? W : L, loser = useMore ? L : W;
+  const mode = qMode();
+  let text, options, answer;
+
+  if (mode === "who") {
+    text = `Who is ${word}?`;
+    options = [A.name, B.name]; answer = winner.name;
+  } else if (mode === "word") {
+    text = `${winner.name} is ______ than ${loser.name}.`;
+    const wrong = shuffle(TRAITS.filter(x => x !== t).flatMap(x => [x.more, x.less])).slice(0, 2);
+    options = shuffle([t.more, t.less, ...wrong]); answer = word;
+  } else {
+    const truth = Math.random() < 0.5;
+    text = truth ? `${winner.name} is ${word} than ${loser.name}.` : `${loser.name} is ${word} than ${winner.name}.`;
+    options = ["O", "X"]; answer = truth ? "O" : "X";
+  }
+  quiz.current = { answer, full: `${winner.name} is ${word} than ${loser.name}.`, done: false };
+  $("qVs").innerHTML = vsHtml(A, B, t);
+  $("qText").textContent = text;
+  $("qOpts").innerHTML = options.map(o => `<button data-o="${esc(o)}">${esc(o)}</button>`).join("");
+}
+$("qOpts").onclick = e => {
+  const b = e.target.closest("button");
+  if (!b || !quiz.current || quiz.current.done) return;
+  quiz.current.done = true;
+  quiz.total++;
+  const ok = b.dataset.o === quiz.current.answer;
+  if (ok) quiz.right++;
+  [...$("qOpts").children].forEach(x => { if (x.dataset.o === quiz.current.answer) x.classList.add("right"); });
+  if (!ok) b.classList.add("wrong");
+  $("qFb").innerHTML = (ok ? `<span style="color:var(--good)">정답! 🎉</span> ` : `<span style="color:var(--bad)">아쉬워요!</span> `) + esc(quiz.current.full);
+  $("qScore").textContent = `${quiz.right} / ${quiz.total}`;
+  speak(quiz.current.full);
+};
+$("qNext").onclick = nextQuestion;
+</script>
+</body>
+</html>
