@@ -156,7 +156,7 @@
 
   <div class="actions">
     <button class="btn primary" id="newBtn">✨ 새로운 친구 만들기</button>
-    <button class="btn secondary" id="renameBtn">🔄 이름만 바꾸기</button>
+    <button class="btn secondary" id="renameBtn">🔁 같은 나라 다른 친구</button>
   </div>
   <div class="pick">
     <label for="numIn">🔢 내 번호</label>
@@ -310,14 +310,23 @@ const SKIN = [ // [base, shade]
   ["#f7dac8","#e6b9a0"], ["#f0c7a4","#d9a47f"], ["#ddad84","#c38d66"], ["#c68d61","#a87049"],
   ["#a66e46","#885434"], ["#87573b","#6b4029"], ["#5f3b27","#472b1b"],
 ];
-const HAIR = ["#1c1917", "#38291f", "#5a3a25", "#86572f", "#c99d5e", "#9a4a2a"]; // black → red
-const EYES = ["#3a2a1f", "#5a3c24", "#6c6136", "#4e7450", "#4a72a0", "#74828e"];
-const BACKDROP = [["#f4f9ff","#cfe2f6"], ["#fbf5ff","#e2d4f3"], ["#fff7ee","#f2dcc4"], ["#f2fbf5","#cde9d7"], ["#fffbea","#f1e2b3"]];
-const UNIFORM = [ // [blazer, tie, badge]
-  ["#26375a","#c23b3b","#f5c542"], ["#2d5a45","#d39b2a","#f5c542"], ["#5a2a3a","#3b6fc2","#f0d27a"],
-  ["#4f5a6b","#2f8aa8","#f5c542"], ["#3567b0","#e4572e","#ffffff"],
-];
-const STYLES = { M: ["short","side","buzz","curly","crop","mop"], F: ["long","bob","bun","curlyLong","ponytail","pigtails"] };
+const HAIR = ["#141211", "#1f1a17", "#2b211c", "#38291f", "#4a3324", "#5a3a25", "#6e4a2c", "#86572f", "#a36f3f", "#c99d5e", "#dcbc82", "#9a4a2a", "#b5582f"];
+const DARK_HAIR = [0, 1, 2, 3, 4, 5], LIGHT_HAIR = [9, 10];
+const EYES = ["#2f2119", "#3a2a1f", "#5a3c24", "#6c6136", "#4e7450", "#4a72a0", "#74828e"];
+const BACKDROP = [["#f4f9ff","#cfe2f6"], ["#fbf5ff","#e2d4f3"], ["#fff7ee","#f2dcc4"], ["#f2fbf5","#cde9d7"], ["#fffbea","#f1e2b3"],
+  ["#fff3f3","#f3cfd2"], ["#effcfd","#c6e9ee"], ["#f6f6f2","#d9d8cf"], ["#f3f1ff","#cfcaf3"]];
+const CLOTH = ["#26375a", "#2d5a45", "#5a2a3a", "#4f5a6b", "#3567b0", "#c23b3b", "#e0a526", "#2f8aa8", "#7b4fa8", "#e86a92", "#ece8df", "#3f7d4e", "#f07c3a", "#1f1f24"];
+const ACCENT = ["#c23b3b", "#d39b2a", "#3b6fc2", "#2f8aa8", "#e4572e", "#ffffff", "#f5c542", "#6bbf73"];
+const OUTFITS = ["blazer", "hoodie", "tshirt", "polo", "cardigan", "sweater"];
+const STYLES = {
+  M: ["short", "side", "buzz", "curly", "crop", "mop", "spiky", "afro", "longM"],
+  F: ["long", "bob", "bun", "curlyLong", "ponytail", "pigtails", "braids", "pixie", "halfup", "afroPuff", "afro"],
+};
+const skinColors = t => { // t is a continuous position on the SKIN scale, so tones blend smoothly
+  const i = Math.min(SKIN.length - 2, Math.floor(t)), k = t - i;
+  return [blend(SKIN[i][0], SKIN[i + 1][0], k), blend(SKIN[i][1], SKIN[i + 1][1], k)];
+};
+const lum = h => { const [r, g, b] = hex2rgb(h); return (r * .299 + g * .587 + b * .114) / 255; };
 
 // ---------- stats (realistic ranges for 6th graders) ----------
 // Each range is cut into CLASS_SIZE slots, one per class number, so two students never share a value.
@@ -394,16 +403,25 @@ function nextLocalNumber() {
 function makeStudent(countryId, number) {
   const c = COUNTRIES.find(x => x.id === countryId) || pick(COUNTRIES);
   const gender = Math.random() < .5 ? "M" : "F";
-  const skin = pick(c.skin);
-  const darkFeatures = skin >= 3 || ["KR","JP","CN","VN","IN","EG","MX"].includes(c.id);
-  const hair = darkFeatures ? pick([0, 0, 1]) : pick([0, 1, 2, 2, 3, 3, 4, 5]);
-  const eye = darkFeatures ? pick([0, 1]) : pick([0, 1, 2, 3, 4, 5]);
+  const skin = rand(Math.min(...c.skin), Math.max(...c.skin) + .99);
+  const darkFeatures = skin >= 2.6 || ["KR","JP","CN","VN","IN","EG","MX"].includes(c.id);
+  const hair = darkFeatures ? pick(DARK_HAIR) : randInt(0, HAIR.length - 1);
+  const eye = darkFeatures ? randInt(0, 2) : randInt(0, EYES.length - 1);
   let style = pick(STYLES[gender]);
-  if (c.curly && Math.random() < .6) style = gender === "M" ? pick(["curly", "buzz"]) : pick(["curlyLong", "pigtails"]);
+  if (c.curly && Math.random() < .65) style = gender === "M" ? pick(["curly", "buzz", "afro", "crop"]) : pick(["curlyLong", "braids", "afroPuff", "afro"]);
+  else if (!c.curly && (style === "afro" || style === "afroPuff") && skin < 3.5) style = pick(STYLES[gender].slice(0, 6));
+  const cloth = randInt(0, CLOTH.length - 1);
+  let accent = randInt(0, ACCENT.length - 1);
+  if (ACCENT[accent] === CLOTH[cloth]) accent = (accent + 1) % ACCENT.length;
   return {
     country: c.id, gender, ...makeName(c, gender),
-    look: { skin, hair, eye, style, glasses: Math.random() < .2, face: makeFace(gender, c.id, skin),
-            backdrop: randInt(0, BACKDROP.length - 1), uniform: randInt(0, UNIFORM.length - 1) },
+    look: { skin, hair, eye, style, face: makeFace(gender, c.id, skin),
+            glasses: Math.random() < .22 ? { shape: pick(["rect", "round", "thin"]), color: pick(["#2a2a2a", "#6b3f22", "#8a2b2b", "#2c3e66", "#9aa3ad"]) } : null,
+            headband: gender === "F" && Math.random() < .22 && ["long","bob","pixie","halfup","pigtails","braids","curlyLong"].includes(style),
+            clip: gender === "F" && Math.random() < .25 && ["long","bob","pixie","halfup","side"].includes(style),
+            earrings: gender === "F" && Math.random() < .35,
+            outfit: pick(OUTFITS), cloth, accent, stripe: Math.random() < .45,
+            backdrop: randInt(0, BACKDROP.length - 1) },
     ...statsFor(number),
     number,
     idNo:   `GFS-${new Date().getFullYear()}-${String(number).padStart(2, "0")}`,
@@ -418,21 +436,31 @@ function makeFace(gender, countryId, skin) {
   const tipY = eyeY + noseLen;
   const chinY = rand(F ? 218 : 222, F ? 228 : 234);
   const mouthY = Math.min(tipY + rand(13, 19), chinY - 17);
+  // A face type sets the overall shape; everything else still varies on top of it.
+  const type = pick(["round", "long", "square", "heart", "oval", "oval"]);
+  const shape = {
+    round:  { w: rand(55, 60), jaw: rand(36, 42), chinW: rand(12, 17), chin: -4 },
+    long:   { w: rand(46, 51), jaw: rand(27, 33), chinW: rand(8, 12), chin: 6 },
+    square: { w: rand(52, 58), jaw: rand(39, 45), chinW: rand(14, 19), chin: 0 },
+    heart:  { w: rand(52, 57), jaw: rand(22, 28), chinW: rand(4, 8), chin: 1 },
+    oval:   { w: rand(49, 55), jaw: rand(28, 36), chinW: rand(8, 13), chin: 0 },
+  }[type];
   const face = {
-    w: rand(F ? 48 : 50, F ? 55 : 58), top: rand(64, 72), jaw: rand(F ? 25 : 29, F ? 34 : 41), chinY, chinW: rand(6, 15),
-    eyeY, eyeGap: rand(20, 25.5), eyeW: rand(10, 13.2), eyeH: 0, tilt: rand(-1.5, 3), mono: Math.random() < monolidOdds,
+    type, w: shape.w - (F ? 1.5 : 0), top: rand(63, 73), jaw: shape.jaw - (F ? 2 : 0), chinY: chinY + shape.chin, chinW: shape.chinW,
+    eyeY, eyeGap: rand(19.5, 26), eyeW: rand(9.5, 13.6), eyeH: 0, tilt: rand(-1.5, 3), mono: Math.random() < monolidOdds,
     irisR: rand(5.3, 6.4),
-    browGap: rand(12, 18), browArch: rand(2.5, 8), browThick: rand(2.6, 4.8) * (F ? .75 : 1), browLen: rand(24, 30), browTilt: rand(-2.5, 3),
-    tipY, noseW: rand(6, 10), noseRound: rand(3.6, 5.8),
-    mouthY, mouthW: rand(11, 16.5), upperLip: rand(1.8, 3.8), lowerLip: rand(3.5, 7.2) + (F ? .8 : 0),
+    browGap: rand(12, 18), browArch: rand(2.5, 8), browThick: rand(2.2, 5.6) * (F ? .75 : 1), browLen: rand(24, 30), browTilt: rand(-2.5, 3),
+    tipY, noseW: rand(5.5, 11), noseRound: rand(3.4, 6.2),
+    mouthY, mouthW: rand(10.5, 17.5), upperLip: rand(1.8, 3.8), lowerLip: rand(3.5, 7.2) + (F ? .8 : 0),
     expr: pick(["smile", "smile", "grin", "neutral", "open"]),
     earY: eyeY + rand(2, 10), earS: rand(.85, 1.15), neckW: rand(F ? 22 : 25, F ? 26 : 30),
-    tilt3d: rand(-4, 4), scale: rand(.95, 1.04), shoulders: rand(.92, 1.08),
+    tilt3d: rand(-5, 5), scale: rand(.93, 1.06), shoulders: rand(.9, 1.1),
     dimples: Math.random() < .3, blush: rand(.08, .2),
     mole: Math.random() < .18 ? [pick([-1, 1]) * rand(18, 34), rand(-6, 22)] : null,
-    freckles: skin <= 1 && Math.random() < .3
+    freckles: skin <= 1.5 && Math.random() < .35
       ? Array.from({ length: randInt(14, 24) }, () => [pick([-1, 1]) * rand(4, 32), rand(14, 32), rand(.55, 1.1)]) : [],
   };
+  face.mouthY = Math.min(face.mouthY, face.chinY - 17);
   face.eyeH = face.mono ? rand(3.6, 4.8) : rand(4.4, 6.4);
   return face;
 }
@@ -448,6 +476,8 @@ const BACK_HAIR = {
   bun:  `<circle cx="150" cy="54" r="25"/>`,
   ponytail: `<path d="M190,74 C232,80 240,140 226,200 C220,222 206,228 204,212 C214,164 212,118 186,94 Z"/>`,
   pigtails: `<path d="M100,148 C78,168 74,222 90,252 C104,232 110,192 108,154 Z"/><path d="M200,148 C222,168 226,222 210,252 C196,232 190,192 192,154 Z"/>`,
+  longM: `<path d="M88,138 C82,80 116,54 150,54 C184,54 218,80 212,138 C214,170 216,198 210,222 C186,230 114,230 90,222 C84,198 86,170 88,138 Z"/>`,
+  halfup: `<circle cx="150" cy="60" r="15"/><path d="M86,138 C80,78 116,52 150,52 C184,52 220,78 214,138 C218,190 226,250 224,300 C200,306 100,306 76,300 C74,250 82,190 86,138 Z"/>`,
 };
 const FRONT_HAIR = {
   short: "M92,142 C86,92 112,62 152,62 C192,62 216,92 208,142 C204,118 196,102 184,96 C164,106 128,106 112,98 C102,108 96,122 92,142 Z",
@@ -462,6 +492,13 @@ const FRONT_HAIR = {
   ponytail: "M92,140 C88,88 118,62 150,62 C182,62 212,88 208,140 C200,108 180,90 150,88 C120,90 100,108 92,140 Z",
   pigtails: "M92,140 C88,88 118,62 150,62 C182,62 212,88 208,140 C202,110 186,92 152,90 L150,97 L148,90 C114,92 98,110 92,140 Z",
   curlyLong: "M94,132 C94,90 120,70 150,70 C180,70 206,90 206,132 C196,106 178,94 150,94 C122,94 104,106 94,132 Z",
+  spiky: "M92,140 C88,96 106,76 118,70 L114,55 L130,64 L134,47 L146,61 L156,45 L163,61 L176,50 L178,68 C196,76 212,98 208,140 C204,116 196,104 184,98 C164,108 128,108 112,100 C102,108 96,122 92,140 Z",
+  afro:  "M96,128 C98,90 122,74 150,74 C178,74 202,90 204,128 C194,106 176,96 150,96 C124,96 106,106 96,128 Z",
+  longM: "M92,140 C88,88 118,60 150,60 C182,60 212,88 208,140 C204,116 190,98 160,94 L150,101 L140,94 C110,98 96,116 92,140 Z",
+  braids: "M92,140 C88,88 118,62 150,62 C182,62 212,88 208,140 C202,110 186,92 152,90 L150,97 L148,90 C114,92 98,110 92,140 Z",
+  pixie: "M92,142 C86,90 116,60 154,60 C192,60 216,92 208,142 C204,112 192,98 178,94 C158,104 130,112 104,124 C98,128 94,134 92,142 Z",
+  halfup: "M92,138 C90,88 118,60 152,60 C186,60 212,88 208,140 C202,114 188,98 168,92 C150,104 120,108 100,112 C96,120 93,128 92,138 Z",
+  afroPuff: "M92,140 C88,88 118,62 150,62 C182,62 212,88 208,140 C200,108 180,90 150,88 C120,90 100,108 92,140 Z",
 };
 const CURLS = {
   curlyBack: [[96,112],[102,84],[124,62],[150,54],[176,62],[198,84],[204,112]],
@@ -480,13 +517,13 @@ function facePath(f) {
 let seq = 0;
 function portrait(s) {
   const L = s.look, f = L.face, p = "p" + (++seq), u = n => `url(#${p}${n})`, F = s.gender === "F";
-  const [skin, shade] = SKIN[L.skin], deep = mix(shade, -.22), light = mix(skin, .16), warm = blend(skin, "#e8776b", .35);
-  const hair = HAIR[L.hair], hairHi = mix(hair, L.hair >= 4 ? .32 : .3), hairLo = mix(hair, -.32);
+  const [skin, shade] = skinColors(L.skin), deep = mix(shade, -.22), light = mix(skin, .16), warm = blend(skin, "#e8776b", .35);
+  const hair = HAIR[L.hair], hairHi = mix(hair, lum(hair) < .12 ? .2 : .3), hairLo = mix(hair, -.32);
   const eye = EYES[L.eye];
   const [bg1, bg2] = BACKDROP[L.backdrop];
-  const [blazer, tie, badge] = UNIFORM[L.uniform];
+  const blazer = CLOTH[L.cloth], tie = ACCENT[L.accent], badge = "#f5c542";
   const lip = blend(shade, "#c75a62", L.skin >= 5 ? .2 : F ? .42 : .32), lipDark = mix(lip, -.2);
-  const brow = L.hair >= 4 ? mix(hair, -.28) : hair;
+  const brow = LIGHT_HAIR.includes(L.hair) ? mix(hair, -.3) : hair;
   const blink = rand(4, 6.5).toFixed(2), blinkDelay = rand(0, 3).toFixed(2);
   const FACE = facePath(f);
   const hairFit = `translate(150 ${f1(f.top - 70)}) scale(${(f.w / 53).toFixed(3)} 1) translate(-150 0)`;
@@ -499,17 +536,26 @@ function portrait(s) {
     `<path d="M${x - r * .6},${y - r * .1} A${r * .62},${r * .62} 0 0 1 ${x + r * .35},${y - r * .58}" stroke="${hairHi}" stroke-width="1.7" fill="none" opacity=".6"/>` +
     `<path d="M${x - r * .2},${y + r * .55} A${r * .6},${r * .6} 0 0 0 ${x + r * .6},${y + r * .1}" stroke="${hairLo}" stroke-width="1.4" fill="none" opacity=".5"/>`).join("");
   const isCurly = L.style === "curly" || L.style === "curlyLong";
+  const ring = (cx, cy, rx, ry, n) => Array.from({ length: n }, (_, i) => { const a = i / n * Math.PI * 2; return [f1(cx + rx * Math.cos(a)), f1(cy + ry * Math.sin(a))].map(Number); });
+  const braid = (x0, x1) => Array.from({ length: 10 }, (_, i) => { const t = i / 9, x = x0 + (x1 - x0) * t, y = 150 + i * 16;
+    return `<ellipse cx="${f1(x + (i % 2 ? 2.5 : -2.5))}" cy="${y}" rx="${f1(10 - t * 3)}" ry="9.5" fill="${u("hair")}" transform="rotate(${i % 2 ? 18 : -18} ${f1(x)} ${y})"/>` +
+      `<path d="M${f1(x - 6 + t * 2)},${y - 3} q6,-4 12,0" stroke="${hairHi}" stroke-width="1.3" fill="none" opacity=".55"/>`; }).join("");
   const back = L.style === "curly" ? curlSet(CURLS.curlyBack, 22)
     : L.style === "curlyLong" ? curlSet(CURLS.curlyLongBack, 26)
+    : L.style === "afro" ? `<ellipse cx="150" cy="104" rx="74" ry="64" fill="${u("hair")}"/>` + curlSet(ring(150, 104, 68, 58, 24), 13)
+    : L.style === "afroPuff" ? `<circle cx="98" cy="74" r="27" fill="${u("hair")}"/><circle cx="202" cy="74" r="27" fill="${u("hair")}"/>` + curlSet([...ring(98, 74, 22, 22, 9), ...ring(202, 74, 22, 22, 9)], 8)
+    : L.style === "braids" ? braid(106, 100) + braid(194, 200)
     : BACK_HAIR[L.style] ? `<g fill="${u("hair")}">${BACK_HAIR[L.style]}</g>` : "";
   const ties = L.style === "ponytail" ? `<ellipse cx="196" cy="86" rx="4" ry="6" fill="${tie}" transform="rotate(30 196 86)"/>`
-    : L.style === "pigtails" ? `<circle cx="104" cy="156" r="4.5" fill="${tie}"/><circle cx="196" cy="156" r="4.5" fill="${tie}"/>` : "";
+    : L.style === "pigtails" ? `<circle cx="104" cy="156" r="4.5" fill="${tie}"/><circle cx="196" cy="156" r="4.5" fill="${tie}"/>`
+    : L.style === "braids" ? `<rect x="94" y="292" width="10" height="6" rx="3" fill="${tie}"/><rect x="196" y="292" width="10" height="6" rx="3" fill="${tie}"/>`
+    : L.style === "afroPuff" ? `<rect x="112" y="88" width="9" height="7" rx="3" fill="${tie}" transform="rotate(-40 116 91)"/><rect x="179" y="88" width="9" height="7" rx="3" fill="${tie}" transform="rotate(40 184 91)"/>` : "";
   const strandsFront = Array.from({ length: 27 }, (_, i) => {
     const k = (i - 13) / 2;
     const c = i % 4 === 0 ? hairLo : hairHi;
     return `<path d="M${150 + k * 3.2},57 Q${150 + k * 12.5},73 ${150 + k * 11},${128 - Math.abs(k) * 2}" stroke="${c}" stroke-width="${i % 3 ? .8 : 1.4}" fill="none" opacity="${i % 4 === 0 ? .5 : .32}"/>`;
   }).join("");
-  const strandsBack = ["long", "bob", "ponytail", "pigtails"].includes(L.style)
+  const strandsBack = ["long", "bob", "ponytail", "pigtails", "longM", "halfup"].includes(L.style)
     ? Array.from({ length: 26 }, (_, i) => { const x = 82 + i * 5.4, out = x < 150 ? -1 : 1;
         return `<path d="M${x},88 Q${x + out * 9},190 ${x + out * 4},304" stroke="${i % 3 ? hairHi : hairLo}" stroke-width="${i % 2 ? .8 : 1.3}" fill="none" opacity=".33"/>`; }).join("")
     : "";
@@ -517,7 +563,9 @@ function portrait(s) {
     <g clip-path="${u("fh")}">${strandsFront}
       <path d="M104,104 Q150,72 196,104" stroke="#fff" stroke-width="9" fill="none" opacity=".16" filter="${u("b3")}"/>
       <path d="M${F ? 160 : 110},70 Q150,96 140,128" stroke="${hairLo}" stroke-width="6" fill="none" opacity=".25" filter="${u("b3")}"/>
-    </g>` + (isCurly ? curlSet(CURLS.front, 13) : "");
+    </g>` + (isCurly ? curlSet(CURLS.front, 13) : "") + (L.style === "afro" ? curlSet(CURLS.front, 11) : "") +
+    (L.headband ? `<path d="M95,118 Q150,52 205,118" stroke="${tie === "#ffffff" ? "#e86a92" : tie}" stroke-width="6.5" fill="none" stroke-linecap="round"/><path d="M98,112 Q150,54 202,112" stroke="#fff" stroke-width="1.5" fill="none" opacity=".35"/>` : "") +
+    (L.clip ? `<rect x="176" y="98" width="15" height="5" rx="2.5" fill="${tie === "#ffffff" ? "#f5c542" : tie}" transform="rotate(28 183 100)"/>` : "");
 
   // ---- eyes: dir = 1 for the eye on the left of the picture, -1 mirrors it ----
   const eyeSvg = (cx, dir) => {
@@ -607,13 +655,53 @@ function portrait(s) {
        <ellipse cx="150" cy="276" rx="4.6" ry="5" fill="${mix(tie, -.18)}"/>`;
 
   const gx = f.eyeGap, gy = eyeY - 11;
-  const glasses = L.glasses
-    ? `<g fill="${u("lens")}" stroke="#2a2a2a" stroke-width="2.2"><rect x="${f1(150 - gx - 17)}" y="${f1(gy)}" width="34" height="23" rx="9"/><rect x="${f1(150 + gx - 17)}" y="${f1(gy)}" width="34" height="23" rx="9"/></g>
-       <path d="M${f1(150 - gx + 17)},${f1(gy + 8)} Q150,${f1(gy + 5)} ${f1(150 + gx - 17)},${f1(gy + 8)} M${f1(150 - gx - 17)},${f1(gy + 7)} L${f1(150 - f.w - 2)},${f1(gy + 5)} M${f1(150 + gx + 17)},${f1(gy + 7)} L${f1(150 + f.w + 2)},${f1(gy + 5)}" fill="none" stroke="#2a2a2a" stroke-width="2.2"/>
-       <path d="M${f1(150 - gx - 12)},${f1(gy + 19)} l10,-16 M${f1(150 + gx - 12)},${f1(gy + 19)} l10,-16" stroke="#fff" stroke-width="2.5" opacity=".3"/>` : "";
+  const g = L.glasses;
+  const lens = cx => g.shape === "round" ? `<circle cx="${f1(cx)}" cy="${f1(gy + 11)}" r="14.5"/>`
+    : `<rect x="${f1(cx - 17)}" y="${f1(gy + (g.shape === "thin" ? 2 : 0))}" width="34" height="${g.shape === "thin" ? 19 : 23}" rx="${g.shape === "thin" ? 4 : 9}"/>`;
+  const gw = g && g.shape === "thin" ? 1.4 : 2.2, edge = g && g.shape === "round" ? 14.5 : 17;
+  const glasses = g
+    ? `<g fill="${u("lens")}" stroke="${g.color}" stroke-width="${gw}">${lens(150 - gx)}${lens(150 + gx)}</g>
+       <path d="M${f1(150 - gx + edge)},${f1(gy + 8)} Q150,${f1(gy + 5)} ${f1(150 + gx - edge)},${f1(gy + 8)} M${f1(150 - gx - edge)},${f1(gy + 7)} L${f1(150 - f.w - 2)},${f1(gy + 5)} M${f1(150 + gx + edge)},${f1(gy + 7)} L${f1(150 + f.w + 2)},${f1(gy + 5)}" fill="none" stroke="${g.color}" stroke-width="${gw}"/>
+       <path d="M${f1(150 - gx - 10)},${f1(gy + 18)} l9,-14 M${f1(150 + gx - 10)},${f1(gy + 18)} l9,-14" stroke="#fff" stroke-width="2.5" opacity=".3"/>` : "";
 
   const nw = f.neckW, sh = f.shoulders.toFixed(3);
-  const hairlineY = (L.style === "bob" || L.style === "mop" ? 120 : 96) + (f.top - 70);
+  const dark = lum(blazer) < .5, trim = mix(blazer, dark ? .22 : -.18);
+  const skinPatch = d => `<path d="${d}" fill="${shade}"/><path d="${d}" fill="${deep}" opacity=".35"/>`;
+  const outfit = {
+    blazer: `<path d="M116,256 Q150,248 184,256 L150,322 Z" fill="#f8f7f3"/>
+      <path d="M120,256 Q150,264 180,256 L176,266 Q150,272 124,266 Z" fill="#000" opacity=".08" filter="${u("b1")}"/>
+      <path d="M124,251 L150,268 L139,288 L113,262 Z M176,251 L150,268 L161,288 L187,262 Z" fill="#ffffff" stroke="#d9d8d2" stroke-width="1"/>
+      ${neckwear}
+      <path d="M114,258 L150,324 L138,340 L108,340 L98,284 Z M186,258 L150,324 L162,340 L192,340 L202,284 Z" fill="${mix(blazer, -.16)}"/>
+      <path d="M114,258 L150,324 M186,258 L150,324" stroke="${mix(blazer, .3)}" stroke-width="1.2" opacity=".6"/>
+      <path d="M200,298 h15 v8 q0,7.5 -7.5,10.5 q-7.5,-3 -7.5,-10.5 Z" fill="${badge}" stroke="#fff" stroke-width="1"/>
+      <path d="${star(207.5, 305, 3.2)}" fill="${blazer}" opacity=".85"/>`,
+    hoodie: `${skinPatch("M128,256 Q150,276 172,256 Q150,262 128,256 Z")}
+      <path d="M96,270 C100,236 200,236 204,270 C196,290 104,290 96,270 Z" fill="${mix(blazer, -.1)}"/>
+      <path d="M110,268 C118,248 182,248 190,268 C180,280 120,280 110,268 Z" fill="${mix(blazer, -.32)}" opacity=".55"/>
+      <path d="M139,276 L137,320 M161,276 L163,320" stroke="${tie === blazer ? "#f4f4f4" : tie}" stroke-width="2.4" stroke-linecap="round"/>
+      <rect x="134.5" y="318" width="5" height="8" rx="1.5" fill="${trim}"/><rect x="160.5" y="318" width="5" height="8" rx="1.5" fill="${trim}"/>
+      <path d="M100,336 Q150,322 200,336" stroke="${mix(blazer, -.25)}" stroke-width="2" fill="none" opacity=".6"/>`,
+    tshirt: `${skinPatch("M124,256 Q150,282 176,256 Q150,262 124,256 Z")}
+      <path d="M122,256 Q150,284 178,256" stroke="${trim}" stroke-width="6" fill="none" stroke-linecap="round"/>
+      ${L.stripe ? `<path d="M46,306 Q150,296 254,306 L256,318 Q150,308 44,318 Z" fill="${tie}" opacity=".9"/>` : `<path d="${star(182, 304, 9)}" fill="${tie}" opacity=".9"/>`}`,
+    polo: `${skinPatch("M138,256 L150,284 L162,256 Z")}
+      <path d="M118,253 L150,262 L141,282 L112,267 Z M182,253 L150,262 L159,282 L188,267 Z" fill="${mix(blazer, .1)}" stroke="${trim}" stroke-width="1.2"/>
+      <path d="M150,284 L150,312" stroke="${trim}" stroke-width="1.4"/>
+      <circle cx="150" cy="292" r="1.8" fill="${trim}"/><circle cx="150" cy="303" r="1.8" fill="${trim}"/>
+      ${L.stripe ? `<path d="M56,322 Q150,312 244,322" stroke="${tie}" stroke-width="5" fill="none"/>` : ""}`,
+    cardigan: `<path d="M116,256 Q150,250 184,256 L154,340 L146,340 Z" fill="${tie === "#ffffff" ? "#f3f1ec" : "#f6f5f1"}"/>
+      ${skinPatch("M128,257 Q150,274 172,257 Q150,262 128,257 Z")}
+      <path d="M126,257 Q150,276 174,257" stroke="#dcd9d0" stroke-width="3" fill="none"/>
+      <path d="M116,256 L146,340 M184,256 L154,340" stroke="${trim}" stroke-width="4"/>
+      <circle cx="141" cy="300" r="2.2" fill="${tie}"/><circle cx="143.5" cy="316" r="2.2" fill="${tie}"/><circle cx="146" cy="332" r="2.2" fill="${tie}"/>`,
+    sweater: `${skinPatch("M126,256 Q150,272 174,256 Q150,262 126,256 Z")}
+      <path d="M120,257 Q150,282 180,257" stroke="${mix(blazer, -.14)}" stroke-width="8" fill="none" stroke-linecap="round"/>
+      <path d="M126,262 l1,6 M134,267 l.5,6 M142,270 v6 M150,271 v6 M158,270 v6 M166,267 l-.5,6 M174,262 l-1,6" stroke="${mix(blazer, -.3)}" stroke-width="1" opacity=".5"/>
+      <path d="M126,250 L150,264 L140,280 L116,262 Z M174,250 L150,264 L160,280 L184,262 Z" fill="#ffffff" stroke="#d9d8d2" stroke-width="1"/>
+      ${L.stripe ? `<path d="M50,318 Q150,306 250,318" stroke="${tie}" stroke-width="4" fill="none" opacity=".85"/><path d="M48,326 Q150,314 252,326" stroke="${tie}" stroke-width="4" fill="none" opacity=".85"/>` : ""}`,
+  }[L.outfit];
+  const hairlineY = (["bob", "mop", "pixie"].includes(L.style) ? 120 : 96) + (f.top - 70);
 
   return `<svg class="ppl" viewBox="0 0 300 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${s.en}의 사진">
   <defs>
@@ -658,19 +746,12 @@ function portrait(s) {
       <path d="M28,340 C32,288 76,262 150,258 C224,262 268,288 272,340 Z" fill="${u("coat")}"/>
       <ellipse cx="94" cy="286" rx="42" ry="14" fill="#fff" opacity=".1" filter="${u("b4")}"/>
       <path d="M58,330 Q70,306 92,296 M242,330 Q232,308 212,298" stroke="${mix(blazer, -.35)}" stroke-width="3" fill="none" opacity=".35" filter="${u("b1")}"/>
-      <path d="M116,256 Q150,248 184,256 L150,322 Z" fill="#f8f7f3"/>
-      <path d="M120,256 Q150,264 180,256 L176,266 Q150,272 124,266 Z" fill="#000" opacity=".08" filter="${u("b1")}"/>
-      <path d="M124,251 L150,268 L139,288 L113,262 Z M176,251 L150,268 L161,288 L187,262 Z" fill="#ffffff" stroke="#d9d8d2" stroke-width="1"/>
-      <path d="M139,288 L150,268 L161,288" stroke="#000" stroke-width="2" fill="none" opacity=".06" filter="${u("b1")}"/>
-      ${neckwear}
-      <path d="M114,258 L150,324 L138,340 L108,340 L98,284 Z M186,258 L150,324 L162,340 L192,340 L202,284 Z" fill="${mix(blazer, -.16)}"/>
-      <path d="M114,258 L150,324 M186,258 L150,324" stroke="${mix(blazer, .3)}" stroke-width="1.2" opacity=".6"/>
-      <path d="M200,298 h15 v8 q0,7.5 -7.5,10.5 q-7.5,-3 -7.5,-10.5 Z" fill="${badge}" stroke="#fff" stroke-width="1"/>
-      <path d="${star(207.5, 305, 3.2)}" fill="${blazer}" opacity=".85"/>
+      ${outfit}
     </g></g>
 
     <g class="head"><g transform="${headPose}">
       ${earSvg(1)}${earSvg(-1)}
+      ${L.earrings ? [1, -1].map(d => `<circle cx="${f1(150 - d * (f.w + 3.5))}" cy="${f1(f.earY + 16.5 * f.earS * .82)}" r="2.3" fill="#e9c46a" stroke="#b8902f" stroke-width=".6"/>`).join("") : ""}
 
       <path d="${FACE}" fill="${u("skin")}"/>
       <g clip-path="${u("face")}">
@@ -812,7 +893,12 @@ $("newBtn").onclick = () => {
 };
 $("numIn").onchange = () => $("newBtn").click();
 $("countrySel").onchange = () => $("newBtn").click();
-$("renameBtn").onclick = () => { Object.assign(student, makeName(countryOf(student), student.gender, student.en)); render(false); };
+// Same nationality and the same records, but a brand-new person: name, gender, face, hair and clothes all change.
+$("renameBtn").onclick = () => {
+  const prev = student.en;
+  do { student = makeStudent(student.country, student.number); } while (student.en === prev);
+  render();
+};
 $("sayNative").onclick = () => {
   if (!("speechSynthesis" in window)) { $("note").textContent = "이 브라우저는 음성 듣기를 지원하지 않아요."; return; }
   const c = countryOf(student);
