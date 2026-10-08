@@ -26,7 +26,38 @@
   .blob.a { width: 340px; height: 340px; background: #a8d8ff; top: -80px; left: -80px; }
   .blob.b { width: 300px; height: 300px; background: #ffd6a5; bottom: -60px; right: -60px; }
   .blob.c { width: 220px; height: 220px; background: #ffc6dc; top: 40%; right: 8%; opacity: .4; }
-  main { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 30px 16px 48px; }
+  main { position: relative; z-index: 1; max-width: 1220px; margin: 0 auto; padding: 30px 16px 48px; }
+  .layout { display: grid; grid-template-columns: minmax(0, 860px) 300px; gap: 22px; justify-content: center; align-items: start; }
+
+  /* Saved friends */
+  .saved { background: var(--card); border-radius: 24px; box-shadow: var(--shadow); padding: 16px; position: sticky; top: 16px; }
+  .saved h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 1.3rem; color: #2b5fd9; display: flex; align-items: center; gap: 8px; }
+  .saved h3 .count { font-family: inherit; font-size: .8rem; font-weight: 800; color: #fff; background: var(--coral); border-radius: 999px; padding: 2px 9px; }
+  .saved .empty { color: var(--muted); font-size: .9rem; line-height: 1.5; margin: 10px 0 2px; padding: 14px; border: 2px dashed var(--line); border-radius: 16px; text-align: center; }
+  .saved ul { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 10px; max-height: calc(100vh - 150px); overflow-y: auto; }
+  .saved li { position: relative; display: grid; grid-template-columns: 62px 1fr; gap: 10px; align-items: center; padding: 8px; border-radius: 16px;
+    background: #f6f9ff; border: 2px solid transparent; cursor: pointer; transition: border-color .15s, transform .15s; }
+  .saved li:hover { transform: translateY(-1px); border-color: #cfe0ff; }
+  .saved li.current { border-color: var(--blue); background: #eef4ff; }
+  .saved li.added { animation: added .5s ease-out; }
+  @keyframes added { from { transform: scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
+  .saved .thumb { width: 62px; aspect-ratio: 300 / 340; border-radius: 10px; overflow: hidden; background: #eef4ff; }
+  .saved .thumb svg { display: block; width: 100%; height: 100%; }
+  .saved .thumb .ppl * { animation: none !important; }
+  .saved .who { min-width: 0; }
+  .saved .nm { display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: .98rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 24px; }
+  .saved .ko { font-size: .78rem; color: var(--muted); margin-top: 1px; }
+  .saved .mini { display: grid; grid-template-columns: 1fr 1fr; gap: 1px 8px; margin-top: 4px; font-size: .74rem; font-weight: 700; color: #3c4a68; font-variant-numeric: tabular-nums; }
+  .saved .del { position: absolute; top: 4px; right: 6px; border: 0; background: none; color: #9aa4ba; font-size: 1rem; cursor: pointer; padding: 2px 4px; border-radius: 8px; }
+  .saved .del:hover { color: var(--pink); background: #ffe9f1; }
+  .saved .clear { margin-top: 10px; width: 100%; border: 0; background: none; color: var(--muted); font-size: .8rem; cursor: pointer; text-decoration: underline; }
+  .btn.select { color: #fff; background: linear-gradient(100deg, #2fbf71, #22a6a0); box-shadow: 0 10px 22px rgba(34,166,160,.3); }
+  .btn.select.done { background: #e6f7ee; color: #1f8a55; box-shadow: 0 0 0 2px #b6e6cb; }
+  @media (max-width: 1180px) {
+    .layout { grid-template-columns: minmax(0, 860px); }
+    .saved { position: static; }
+    .saved ul { max-height: none; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+  }
   .title { text-align: center; margin-bottom: 22px; }
   .title h1 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 2.3rem; color: #2b5fd9; letter-spacing: .01em; }
   .title h1 span { color: var(--coral); }
@@ -133,6 +164,8 @@
     <p>버튼을 눌러 세계 여러 나라의 새 친구를 만나 보세요!</p>
   </div>
 
+  <div class="layout">
+  <section>
   <article class="id" aria-live="polite">
     <div class="id-head">
       <span class="school">Global Friends School</span>
@@ -155,6 +188,7 @@
   </article>
 
   <div class="actions">
+    <button class="btn select" id="selectBtn">💚 이 친구 선택하기</button>
     <button class="btn primary" id="newBtn">✨ 새로운 친구 만들기</button>
     <button class="btn secondary" id="renameBtn">🔁 같은 나라 다른 친구</button>
   </div>
@@ -165,6 +199,13 @@
     <select id="countrySel"></select>
   </div>
   <p class="hint" id="hint">번호를 넣으면 반 친구들과 기록(키, 몸무게, 가방 등)이 절대 겹치지 않아요.</p>
+  </section>
+
+  <aside class="saved" aria-label="내가 선택한 친구">
+    <h3>💚 내가 선택한 친구 <span class="count" id="savedCount">0</span></h3>
+    <div id="savedList"></div>
+  </aside>
+  </div>
 </main>
 <script>
 // ---------- countries & names ----------
@@ -424,6 +465,7 @@ function makeStudent(countryId, number) {
             backdrop: randInt(0, BACKDROP.length - 1) },
     ...statsFor(number),
     number,
+    uid:    Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
     idNo:   `GFS-${new Date().getFullYear()}-${String(number).padStart(2, "0")}`,
   };
 }
@@ -870,6 +912,7 @@ function render(animate = true) {
   ];
   $("info").innerHTML = rows.map(r => `<div style="--tile:${r.tile}"><dt><span class="ic">${r.ic}</span>${r.ko} <small>${r.en}</small></dt><dd>${r.v}</dd></div>`).join("");
   $("idNo").textContent = `No. ${student.idNo}`;
+  if (typeof renderSaved === "function" && $("savedList")) renderSaved();
 }
 
 $("countrySel").innerHTML = `<option value="">무작위 (Random)</option>` +
@@ -907,6 +950,61 @@ $("sayNative").onclick = () => {
 $("sayEnglish").onclick = () => {
   if (!("speechSynthesis" in window)) { $("note").textContent = "이 브라우저는 음성 듣기를 지원하지 않아요."; return; }
   say(student.en, "en-US"); $("note").textContent = "";
+};
+
+// ---------- friends the student picked (kept on this device) ----------
+const SAVE_KEY = "aiFriend.saved";
+let saved = [];
+try { saved = JSON.parse(localStorage.getItem(SAVE_KEY)) || []; } catch (e) { saved = []; }
+saved = saved.filter(x => x && x.uid && x.look && x.look.face);
+const persist = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(saved)); } catch (e) {} };
+const esc = t => String(t).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+
+function renderSaved(addedUid) {
+  $("savedCount").textContent = saved.length;
+  if (!saved.length) {
+    $("savedList").innerHTML = `<p class="empty">마음에 드는 친구가 나오면<br><b>💚 이 친구 선택하기</b>를 눌러 보세요.<br>여기에 차곡차곡 모여요!</p>`;
+  } else {
+    $("savedList").innerHTML = `<ul>${saved.map(x => {
+      const c = countryOf(x);
+      return `<li data-uid="${x.uid}" class="${x.uid === student.uid ? "current" : ""} ${x.uid === addedUid ? "added" : ""}" title="눌러서 다시 보기">
+        <div class="thumb">${portrait(x)}</div>
+        <div class="who">
+          <div class="nm">${flagSvg(c.id, 13)}<span>${esc(x.en)}</span></div>
+          <div class="ko">${esc(x.ko)} · ${c.ko}</div>
+          <div class="mini"><span>📏 ${x.height.toFixed(1)}cm</span><span>⚖️ ${x.weight.toFixed(1)}kg</span>
+            <span>💪 ${x.grip.toFixed(1)}kg</span><span>🏃 ${x.run.toFixed(2)}초</span>
+            <span>🖊️ ${x.pen.toFixed(1)}cm</span><span>🎒 ${x.bag}권</span></div>
+        </div>
+        <button class="del" data-del="${x.uid}" aria-label="${esc(x.en)} 지우기" title="지우기">✕</button>
+      </li>`; }).join("")}</ul>
+      <button class="clear" id="clearSaved">전체 지우기</button>`;
+  }
+  const isSaved = saved.some(x => x.uid === student.uid);
+  $("selectBtn").textContent = isSaved ? "✅ 선택한 친구예요" : "💚 이 친구 선택하기";
+  $("selectBtn").classList.toggle("done", isSaved);
+}
+$("selectBtn").onclick = () => {
+  if (saved.some(x => x.uid === student.uid)) return;
+  saved.unshift(JSON.parse(JSON.stringify(student)));
+  persist();
+  renderSaved(student.uid);
+};
+$("savedList").onclick = e => {
+  const del = e.target.closest("[data-del]");
+  if (del) {
+    saved = saved.filter(x => x.uid !== del.dataset.del);
+    persist(); renderSaved(); return;
+  }
+  if (e.target.id === "clearSaved") {
+    if (confirm("선택한 친구를 모두 지울까요?")) { saved = []; persist(); renderSaved(); }
+    return;
+  }
+  const li = e.target.closest("li[data-uid]");
+  if (!li) return;
+  student = JSON.parse(JSON.stringify(saved.find(x => x.uid === li.dataset.uid)));
+  render();
+  if (window.innerWidth <= 1180) document.querySelector(".id").scrollIntoView({ behavior: "smooth", block: "start" });
 };
 
 student = makeStudent("", nextLocalNumber());
