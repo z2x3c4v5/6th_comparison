@@ -81,6 +81,11 @@
   .btn.primary { color: #fff; background: linear-gradient(100deg, var(--coral), var(--pink)); box-shadow: 0 10px 22px rgba(255,92,147,.32); }
   .btn.secondary { color: #2b5fd9; background: #fff; box-shadow: 0 0 0 2px #cfe0ff, 0 8px 18px rgba(63,110,200,.12); }
   .pick { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 16px; color: var(--muted); font-weight: 700; }
+  .pick { flex-wrap: wrap; }
+  .pick input { width: 84px; padding: 9px 12px; border-radius: 999px; border: 2px solid #cfe0ff; background: #fff; color: var(--ink); font-size: .95rem; font-weight: 700; text-align: center; }
+  .pick label + select, .pick input + label { margin-left: 6px; }
+  .hint { text-align: center; color: var(--muted); font-size: .85rem; margin: 10px 0 0; }
+  .hint.warn { color: #d9480f; font-weight: 700; }
   .pick select { padding: 9px 14px; border-radius: 999px; border: 2px solid #cfe0ff; background: #fff; color: var(--ink); font-size: .95rem; font-weight: 600; }
 
   /* ---- portrait motion ---- */
@@ -154,9 +159,12 @@
     <button class="btn secondary" id="renameBtn">🔄 이름만 바꾸기</button>
   </div>
   <div class="pick">
+    <label for="numIn">🔢 내 번호</label>
+    <input id="numIn" type="number" min="1" max="35" inputmode="numeric" placeholder="1~35">
     <label for="countrySel">🌏 국적</label>
     <select id="countrySel"></select>
   </div>
+  <p class="hint" id="hint">번호를 넣으면 반 친구들과 기록(키, 몸무게, 가방 등)이 절대 겹치지 않아요.</p>
 </main>
 <script>
 // ---------- countries & names ----------
@@ -312,13 +320,15 @@ const UNIFORM = [ // [blazer, tie, badge]
 const STYLES = { M: ["short","side","buzz","curly","crop","mop"], F: ["long","bob","bun","curlyLong","ponytail","pigtails"] };
 
 // ---------- stats (realistic ranges for 6th graders) ----------
+// Each range is cut into CLASS_SIZE slots, one per class number, so two students never share a value.
+const CLASS_SIZE = 35;
 const STATS = [
-  { key:"height", ko:"키", en:"Height", ic:"📏", tile:"#e8f8ef", fmt:v=>`${v.toFixed(1)} cm` },
-  { key:"weight", ko:"몸무게", en:"Weight", ic:"⚖️", tile:"#fff6d8", fmt:v=>`${v.toFixed(1)} kg` },
-  { key:"grip",   ko:"힘 (악력)", en:"Strength", ic:"💪", tile:"#ffece4", fmt:v=>`${v.toFixed(1)} kg` },
-  { key:"run",    ko:"50m 달리기", en:"50m run", ic:"🏃", tile:"#e6f4ff", fmt:v=>`${v.toFixed(2)}초` },
-  { key:"pen",    ko:"좋아하는 펜 길이", en:"Favorite pen", ic:"🖊️", tile:"#f1ecff", fmt:v=>`${v.toFixed(1)} cm` },
-  { key:"bag",    ko:"가방 용량", en:"Bag", ic:"🎒", tile:"#fff0e3", fmt:v=>`책 ${v}권` },
+  { key:"height", ko:"키", en:"Height", ic:"📏", tile:"#e8f8ef", min:138, max:170, dec:1, fmt:v=>`${v.toFixed(1)} cm` },
+  { key:"weight", ko:"몸무게", en:"Weight", ic:"⚖️", tile:"#fff6d8", min:31, max:66, dec:1, fmt:v=>`${v.toFixed(1)} kg` },
+  { key:"grip",   ko:"힘 (악력)", en:"Strength", ic:"💪", tile:"#ffece4", min:12, max:38, dec:1, fmt:v=>`${v.toFixed(1)} kg` },
+  { key:"run",    ko:"50m 달리기", en:"50m run", ic:"🏃", tile:"#e6f4ff", min:7.5, max:10.6, dec:2, fmt:v=>`${v.toFixed(2)}초` },
+  { key:"pen",    ko:"좋아하는 펜 길이", en:"Favorite pen", ic:"🖊️", tile:"#f1ecff", min:10.5, max:20, dec:1, fmt:v=>`${v.toFixed(1)} cm` },
+  { key:"bag",    ko:"가방 용량", en:"Bag", ic:"🎒", tile:"#fff0e3", min:6, max:40, dec:0, fmt:v=>`책 ${v}권` },
 ];
 
 // ---------- helpers ----------
@@ -327,7 +337,6 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 const rand = (a, b) => Math.random() * (b - a) + a;
 const randInt = (a, b) => Math.floor(rand(a, b + 1));
 const round = (v, d) => +v.toFixed(d);
-const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const hex2rgb = h => { const n = parseInt(h.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
 const rgb2hex = c => "#" + c.map(x => Math.round(x).toString(16).padStart(2, "0")).join("");
 const blend = (a, b, t) => { const x = hex2rgb(a), y = hex2rgb(b); return rgb2hex(x.map((v, i) => v + (y[i] - v) * t)); };
@@ -347,7 +356,42 @@ function makeName(c, gender, avoid) {
   }
 }
 
-function makeStudent(countryId) {
+// ---------- unique records ----------
+// Every device shuffles the slots the same way for a given day, so class number N always lands in
+// its own slot of each range. Different numbers → different slots → different values, even across devices.
+function seeded(str) {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) { h = Math.imul(h ^ str.charCodeAt(i), 3432918353); h = h << 13 | h >>> 19; }
+  return () => { h = Math.imul(h ^ h >>> 16, 2246822507); h = Math.imul(h ^ h >>> 13, 3266489909); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
+}
+const today = () => new Date().toLocaleDateString("sv-SE"); // YYYY-MM-DD in local time
+function slotOf(key, number) {
+  const r = seeded(`${today()}|${key}`), perm = Array.from({ length: CLASS_SIZE }, (_, i) => i);
+  for (let i = perm.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [perm[i], perm[j]] = [perm[j], perm[i]]; }
+  return perm[number - 1];
+}
+function statsFor(number) {
+  const out = {};
+  for (const t of STATS) {
+    const slot = slotOf(t.key, number);
+    if (t.dec === 0) { out[t.key] = t.min + slot; continue; }
+    // Stay near the middle of the slot so rounding can never push two slots onto the same value.
+    const step = (t.max - t.min) / CLASS_SIZE;
+    const jitter = seeded(`${today()}|${t.key}|${number}`)() * .4 - .2;
+    out[t.key] = round(t.min + step * (slot + .5 + jitter), t.dec);
+  }
+  return out;
+}
+// Without a class number, this device hands out numbers in turn so its own friends never repeat.
+function nextLocalNumber() {
+  const key = `aiFriend.next.${today()}`;
+  let n = 1;
+  try { n = +localStorage.getItem(key) || 1; localStorage.setItem(key, n % CLASS_SIZE + 1); }
+  catch (e) { n = (nextLocalNumber.mem = (nextLocalNumber.mem || 0) % CLASS_SIZE + 1); }
+  return n;
+}
+
+function makeStudent(countryId, number) {
   const c = COUNTRIES.find(x => x.id === countryId) || pick(COUNTRIES);
   const gender = Math.random() < .5 ? "M" : "F";
   const skin = pick(c.skin);
@@ -356,18 +400,13 @@ function makeStudent(countryId) {
   const eye = darkFeatures ? pick([0, 1]) : pick([0, 1, 2, 3, 4, 5]);
   let style = pick(STYLES[gender]);
   if (c.curly && Math.random() < .6) style = gender === "M" ? pick(["curly", "buzz"]) : pick(["curlyLong", "pigtails"]);
-  const height = round(rand(140, 168), 1);
   return {
     country: c.id, gender, ...makeName(c, gender),
     look: { skin, hair, eye, style, glasses: Math.random() < .2, face: makeFace(gender, c.id, skin),
             backdrop: randInt(0, BACKDROP.length - 1), uniform: randInt(0, UNIFORM.length - 1) },
-    height,
-    weight: round(clamp((height - 100) * .78 + rand(-7, 8), 30, 66), 1),
-    grip:   round(clamp((height - 120) * .45 + rand(-5, 7), 12, 38), 1),
-    run:    round(rand(7.6, 10.4), 2),
-    pen:    round(rand(12, 18.5), 1),
-    bag:    randInt(6, 15),
-    idNo:   `GFS-${new Date().getFullYear()}-${String(randInt(1, 9999)).padStart(4, "0")}`,
+    ...statsFor(number),
+    number,
+    idNo:   `GFS-${new Date().getFullYear()}-${String(number).padStart(2, "0")}`,
   };
 }
 
@@ -754,7 +793,24 @@ function render(animate = true) {
 
 $("countrySel").innerHTML = `<option value="">무작위 (Random)</option>` +
   COUNTRIES.map(c => `<option value="${c.id}">${c.ko}</option>`).join("");
-$("newBtn").onclick = () => { student = makeStudent($("countrySel").value); render(); };
+function chosenNumber() {
+  const raw = $("numIn").value.trim();
+  if (!raw) return { number: nextLocalNumber(), mine: false };
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > CLASS_SIZE) return null;
+  return { number: n, mine: true };
+}
+$("newBtn").onclick = () => {
+  const pickNo = chosenNumber();
+  if (!pickNo) { $("hint").textContent = `번호는 1부터 ${CLASS_SIZE}까지 넣어 주세요.`; $("hint").classList.add("warn"); $("numIn").focus(); return; }
+  $("hint").classList.remove("warn");
+  $("hint").textContent = pickNo.mine
+    ? `${pickNo.number}번 친구의 기록은 오늘 반 친구들과 겹치지 않아요. 새로 만들어도 기록은 그대로이고 모습만 바뀌어요.`
+    : "번호를 넣으면 반 친구들과 기록(키, 몸무게, 가방 등)이 절대 겹치지 않아요.";
+  student = makeStudent($("countrySel").value, pickNo.number);
+  render();
+};
+$("numIn").onchange = () => $("newBtn").click();
 $("countrySel").onchange = () => $("newBtn").click();
 $("renameBtn").onclick = () => { Object.assign(student, makeName(countryOf(student), student.gender, student.en)); render(false); };
 $("sayNative").onclick = () => {
@@ -767,7 +823,7 @@ $("sayEnglish").onclick = () => {
   say(student.en, "en-US"); $("note").textContent = "";
 };
 
-student = makeStudent();
+student = makeStudent("", nextLocalNumber());
 render();
 </script>
 </body>
