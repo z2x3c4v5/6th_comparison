@@ -309,7 +309,7 @@ const UNIFORM = [ // [blazer, tie, badge]
   ["#26375a","#c23b3b","#f5c542"], ["#2d5a45","#d39b2a","#f5c542"], ["#5a2a3a","#3b6fc2","#f0d27a"],
   ["#4f5a6b","#2f8aa8","#f5c542"], ["#3567b0","#e4572e","#ffffff"],
 ];
-const STYLES = { M: ["short","side","buzz","curly"], F: ["long","bob","bun","curlyLong"] };
+const STYLES = { M: ["short","side","buzz","curly","crop","mop"], F: ["long","bob","bun","curlyLong","ponytail","pigtails"] };
 
 // ---------- stats (realistic ranges for 6th graders) ----------
 const STATS = [
@@ -355,11 +355,11 @@ function makeStudent(countryId) {
   const hair = darkFeatures ? pick([0, 0, 1]) : pick([0, 1, 2, 2, 3, 3, 4, 5]);
   const eye = darkFeatures ? pick([0, 1]) : pick([0, 1, 2, 3, 4, 5]);
   let style = pick(STYLES[gender]);
-  if (c.curly && Math.random() < .6) style = gender === "M" ? pick(["curly", "buzz"]) : "curlyLong";
+  if (c.curly && Math.random() < .6) style = gender === "M" ? pick(["curly", "buzz"]) : pick(["curlyLong", "pigtails"]);
   const height = round(rand(140, 168), 1);
   return {
     country: c.id, gender, ...makeName(c, gender),
-    look: { skin, hair, eye, style, glasses: Math.random() < .2, smile: Math.random() < .5 ? "open" : "closed",
+    look: { skin, hair, eye, style, glasses: Math.random() < .2, face: makeFace(gender, c.id, skin),
             backdrop: randInt(0, BACKDROP.length - 1), uniform: randInt(0, UNIFORM.length - 1) },
     height,
     weight: round(clamp((height - 100) * .78 + rand(-7, 8), 30, 66), 1),
@@ -371,23 +371,57 @@ function makeStudent(countryId) {
   };
 }
 
+// ---------- face shape (every student gets their own proportions) ----------
+function makeFace(gender, countryId, skin) {
+  const F = gender === "F";
+  const monolidOdds = ["KR","JP","CN","VN"].includes(countryId) ? .6 : .08;
+  const eyeY = rand(140, 148), noseLen = rand(F ? 23 : 25, F ? 31 : 36);
+  const tipY = eyeY + noseLen;
+  const chinY = rand(F ? 218 : 222, F ? 228 : 234);
+  const mouthY = Math.min(tipY + rand(13, 19), chinY - 17);
+  const face = {
+    w: rand(F ? 48 : 50, F ? 55 : 58), top: rand(64, 72), jaw: rand(F ? 25 : 29, F ? 34 : 41), chinY, chinW: rand(6, 15),
+    eyeY, eyeGap: rand(20, 25.5), eyeW: rand(10, 13.2), eyeH: 0, tilt: rand(-1.5, 3), mono: Math.random() < monolidOdds,
+    irisR: rand(5.3, 6.4),
+    browGap: rand(12, 18), browArch: rand(2.5, 8), browThick: rand(2.6, 4.8) * (F ? .75 : 1), browLen: rand(24, 30), browTilt: rand(-2.5, 3),
+    tipY, noseW: rand(6, 10), noseRound: rand(3.6, 5.8),
+    mouthY, mouthW: rand(11, 16.5), upperLip: rand(1.8, 3.8), lowerLip: rand(3.5, 7.2) + (F ? .8 : 0),
+    expr: pick(["smile", "smile", "grin", "neutral", "open"]),
+    earY: eyeY + rand(2, 10), earS: rand(.85, 1.15), neckW: rand(F ? 22 : 25, F ? 26 : 30),
+    tilt3d: rand(-4, 4), scale: rand(.95, 1.04), shoulders: rand(.92, 1.08),
+    dimples: Math.random() < .3, blush: rand(.08, .2),
+    mole: Math.random() < .18 ? [pick([-1, 1]) * rand(18, 34), rand(-6, 22)] : null,
+    freckles: skin <= 1 && Math.random() < .3
+      ? Array.from({ length: randInt(14, 24) }, () => [pick([-1, 1]) * rand(4, 32), rand(14, 32), rand(.55, 1.1)]) : [],
+  };
+  face.eyeH = face.mono ? rand(3.6, 4.8) : rand(4.4, 6.4);
+  return face;
+}
+
 // ---------- portrait ----------
 // Soft studio-photo style lit from the upper left. Groups are named so CSS can animate them:
-// .figure (breathing) > back hair .head, .shoulders, front .head (both .head groups sway together) > .eye (blink), .iris (looks around), .m-rest/.m-talk (mouth).
-const FACE = "M97,132 C96,88 121,68 150,68 C179,68 204,88 203,132 C203,150 201,166 196,180 C190,198 178,213 166,221 C160,225 155,227 150,227 C145,227 140,225 134,221 C122,213 110,198 104,180 C99,166 97,150 97,132 Z";
+// .figure (breathing) > back hair .head, .shoulders, front .head (both .head groups sway together)
+//   > .eye (blink), .iris (looks around), .m-rest/.m-talk (mouth).
+// Hair shapes are drawn for a 53-wide head whose top is at y=70, then fitted to each face.
 const BACK_HAIR = {
   long: `<path d="M86,138 C80,78 116,52 150,52 C184,52 220,78 214,138 C218,190 226,250 224,300 C200,306 100,306 76,300 C74,250 82,190 86,138 Z"/>`,
   bob:  `<path d="M84,138 C80,80 114,54 150,54 C186,54 220,80 216,138 C218,170 220,198 214,224 C188,232 112,232 86,224 C80,198 82,170 84,138 Z"/>`,
   bun:  `<circle cx="150" cy="54" r="25"/>`,
+  ponytail: `<path d="M190,74 C232,80 240,140 226,200 C220,222 206,228 204,212 C214,164 212,118 186,94 Z"/>`,
+  pigtails: `<path d="M100,148 C78,168 74,222 90,252 C104,232 110,192 108,154 Z"/><path d="M200,148 C222,168 226,222 210,252 C196,232 190,192 192,154 Z"/>`,
 };
 const FRONT_HAIR = {
   short: "M92,142 C86,92 112,62 152,62 C192,62 216,92 208,142 C204,118 196,102 184,96 C164,106 128,106 112,98 C102,108 96,122 92,142 Z",
   side:  "M92,140 C88,90 116,60 154,60 C192,60 214,90 208,140 C204,114 194,98 180,92 C160,96 132,92 122,82 C110,98 98,116 92,140 Z",
   buzz:  "M95,130 C97,84 122,66 150,66 C178,66 203,84 205,130 C196,102 177,88 150,88 C123,88 104,102 95,130 Z",
+  crop:  "M93,136 C88,90 114,62 150,62 C186,62 212,90 207,136 C204,116 198,104 190,100 L184,108 L178,99 L170,106 L163,97 L155,105 L148,96 L140,104 L133,96 L125,104 L118,98 L112,106 C104,112 97,122 93,136 Z",
+  mop:   "M91,140 C86,86 114,58 150,58 C186,58 214,86 209,140 C206,128 200,120 194,117 C182,123 168,116 160,120 C150,114 138,122 126,116 C116,122 106,118 100,121 C96,126 93,132 91,140 Z",
   curly: "M94,130 C94,90 120,70 150,70 C180,70 206,90 206,130 C196,104 178,92 150,92 C122,92 104,104 94,130 Z",
   long:  "M92,138 C90,88 118,60 152,60 C186,60 212,88 208,140 C202,114 188,98 168,92 C150,104 120,108 100,112 C96,120 93,128 92,138 Z",
   bob:   "M92,128 C92,82 118,60 150,60 C182,60 208,82 208,128 C200,123 192,120 182,119 C160,116 140,116 118,119 C108,120 100,123 92,128 Z",
   bun:   "M92,140 C88,88 118,62 150,62 C182,62 212,88 208,140 C200,108 180,90 150,88 C120,90 100,108 92,140 Z",
+  ponytail: "M92,140 C88,88 118,62 150,62 C182,62 212,88 208,140 C200,108 180,90 150,88 C120,90 100,108 92,140 Z",
+  pigtails: "M92,140 C88,88 118,62 150,62 C182,62 212,88 208,140 C202,110 186,92 152,90 L150,97 L148,90 C114,92 98,110 92,140 Z",
   curlyLong: "M94,132 C94,90 120,70 150,70 C180,70 206,90 206,132 C196,106 178,94 150,94 C122,94 104,106 94,132 Z",
 };
 const CURLS = {
@@ -396,17 +430,29 @@ const CURLS = {
   front: [[102,114],[110,93],[126,80],[144,74],[162,75],[178,82],[192,94],[199,113]],
 };
 
+const f1 = n => n.toFixed(1);
+function facePath(f) {
+  const L = 150 - f.w, R = 150 + f.w, t = f.top, j = f.jaw, cy = f.chinY, cw = f.chinW;
+  return `M${f1(L)},132 C${f1(L)},${f1(t + 22)} ${f1(150 - f.w * .52)},${f1(t)} 150,${f1(t)} C${f1(150 + f.w * .52)},${f1(t)} ${f1(R)},${f1(t + 22)} ${f1(R)},132 ` +
+    `C${f1(R)},166 ${f1(150 + j + 9)},194 ${f1(150 + j)},${f1(cy - 20)} C${f1(150 + j - 7)},${f1(cy - 9)} ${f1(150 + cw + 5)},${f1(cy)} 150,${f1(cy)} ` +
+    `C${f1(150 - cw - 5)},${f1(cy)} ${f1(150 - j + 7)},${f1(cy - 9)} ${f1(150 - j)},${f1(cy - 20)} C${f1(150 - j - 9)},194 ${f1(L)},166 ${f1(L)},132 Z`;
+}
+
 let seq = 0;
 function portrait(s) {
-  const L = s.look, p = "p" + (++seq), u = n => `url(#${p}${n})`, F = s.gender === "F";
+  const L = s.look, f = L.face, p = "p" + (++seq), u = n => `url(#${p}${n})`, F = s.gender === "F";
   const [skin, shade] = SKIN[L.skin], deep = mix(shade, -.22), light = mix(skin, .16), warm = blend(skin, "#e8776b", .35);
   const hair = HAIR[L.hair], hairHi = mix(hair, L.hair >= 4 ? .32 : .3), hairLo = mix(hair, -.32);
   const eye = EYES[L.eye];
   const [bg1, bg2] = BACKDROP[L.backdrop];
   const [blazer, tie, badge] = UNIFORM[L.uniform];
-  const lip = blend(shade, "#c75a62", L.skin >= 5 ? .2 : .36), lipDark = mix(lip, -.2);
+  const lip = blend(shade, "#c75a62", L.skin >= 5 ? .2 : F ? .42 : .32), lipDark = mix(lip, -.2);
   const brow = L.hair >= 4 ? mix(hair, -.28) : hair;
   const blink = rand(4, 6.5).toFixed(2), blinkDelay = rand(0, 3).toFixed(2);
+  const FACE = facePath(f);
+  const hairFit = `translate(150 ${f1(f.top - 70)}) scale(${(f.w / 53).toFixed(3)} 1) translate(-150 0)`;
+  const headPose = `rotate(${f1(f.tilt3d)} 150 236) translate(150 236) scale(${f.scale.toFixed(3)}) translate(-150 -236)`;
+  const { eyeY, tipY, mouthY, chinY } = f;
 
   // ---- hair ----
   const curlSet = (pts, r) => pts.map(([x, y]) =>
@@ -417,12 +463,14 @@ function portrait(s) {
   const back = L.style === "curly" ? curlSet(CURLS.curlyBack, 22)
     : L.style === "curlyLong" ? curlSet(CURLS.curlyLongBack, 26)
     : BACK_HAIR[L.style] ? `<g fill="${u("hair")}">${BACK_HAIR[L.style]}</g>` : "";
+  const ties = L.style === "ponytail" ? `<ellipse cx="196" cy="86" rx="4" ry="6" fill="${tie}" transform="rotate(30 196 86)"/>`
+    : L.style === "pigtails" ? `<circle cx="104" cy="156" r="4.5" fill="${tie}"/><circle cx="196" cy="156" r="4.5" fill="${tie}"/>` : "";
   const strandsFront = Array.from({ length: 27 }, (_, i) => {
     const k = (i - 13) / 2;
     const c = i % 4 === 0 ? hairLo : hairHi;
     return `<path d="M${150 + k * 3.2},57 Q${150 + k * 12.5},73 ${150 + k * 11},${128 - Math.abs(k) * 2}" stroke="${c}" stroke-width="${i % 3 ? .8 : 1.4}" fill="none" opacity="${i % 4 === 0 ? .5 : .32}"/>`;
   }).join("");
-  const strandsBack = L.style === "long" || L.style === "bob"
+  const strandsBack = ["long", "bob", "ponytail", "pigtails"].includes(L.style)
     ? Array.from({ length: 26 }, (_, i) => { const x = 82 + i * 5.4, out = x < 150 ? -1 : 1;
         return `<path d="M${x},88 Q${x + out * 9},190 ${x + out * 4},304" stroke="${i % 3 ? hairHi : hairLo}" stroke-width="${i % 2 ? .8 : 1.3}" fill="none" opacity=".33"/>`; }).join("")
     : "";
@@ -432,65 +480,84 @@ function portrait(s) {
       <path d="M${F ? 160 : 110},70 Q150,96 140,128" stroke="${hairLo}" stroke-width="6" fill="none" opacity=".25" filter="${u("b3")}"/>
     </g>` + (isCurly ? curlSet(CURLS.front, 13) : "");
 
-  // ---- eyes: one function for both sides; dir = -1 mirrors the shape around the eye centre ----
+  // ---- eyes: dir = 1 for the eye on the left of the picture, -1 mirrors it ----
   const eyeSvg = (cx, dir) => {
-    const X = v => (cx + dir * (v - 128)).toFixed(1);
-    const shape = `M${X(116)},145 Q${X(124)},136.5 ${X(133)},138.5 Q${X(138)},140 ${X(140)},146 Q${X(130)},151.5 ${X(116)},145 Z`;
-    const icx = cx + dir * .5;
+    const X = dx => f1(cx + dir * dx), w = f.eyeW, h = f.eyeH, oy = eyeY - f.tilt;
+    const shape = `M${X(-w)},${f1(oy)} C${X(-w * .45)},${f1(eyeY - h * 1.65)} ${X(w * .45)},${f1(eyeY - h * 1.6)} ${X(w)},${f1(eyeY + .6)} ` +
+                  `C${X(w * .4)},${f1(eyeY + h * 1.15)} ${X(-w * .5)},${f1(eyeY + h * 1.1)} ${X(-w)},${f1(oy)} Z`;
+    const lid = `M${X(-w - 1)},${f1(oy + .3)} C${X(-w * .45)},${f1(eyeY - h * 1.75)} ${X(w * .45)},${f1(eyeY - h * 1.7)} ${X(w + 1)},${f1(eyeY + .8)}`;
+    const crease = `M${X(-w * .8)},${f1(oy - 3)} C${X(-w * .35)},${f1(eyeY - h * 1.65 - 4.5)} ${X(w * .4)},${f1(eyeY - h * 1.6 - 4)} ${X(w * .9)},${f1(eyeY - 3)}`;
+    const icx = cx + dir * .5, icy = eyeY - h * .15, r = f.irisR;
     const fibers = Array.from({ length: 14 }, (_, i) => { const a = i * Math.PI / 7;
-      return `M${(icx + 2.9 * Math.cos(a)).toFixed(2)},${(144.5 + 2.9 * Math.sin(a)).toFixed(2)} L${(icx + 6 * Math.cos(a)).toFixed(2)},${(144.5 + 6 * Math.sin(a)).toFixed(2)}`; }).join(" ");
-    return `<ellipse cx="${cx}" cy="140" rx="16" ry="8" fill="${deep}" opacity=".15" filter="${u("b3")}"/>
+      return `M${f1(icx + r * .46 * Math.cos(a))},${f1(icy + r * .46 * Math.sin(a))} L${f1(icx + r * .95 * Math.cos(a))},${f1(icy + r * .95 * Math.sin(a))}`; }).join(" ");
+    return `<ellipse cx="${f1(cx)}" cy="${f1(eyeY - 5)}" rx="${f1(w + 5)}" ry="8" fill="${deep}" opacity=".15" filter="${u("b3")}"/>
     <g class="eye" style="--blink:${blink}s;--blink-delay:${blinkDelay}s">
       <clipPath id="${p}e${dir}"><path d="${shape}"/></clipPath>
       <path d="${shape}" fill="${u("sclera")}"/>
       <g clip-path="url(#${p}e${dir})">
         <g class="iris">
-          <circle cx="${icx}" cy="144.5" r="6.3" fill="${u("iris")}"/>
+          <circle cx="${f1(icx)}" cy="${f1(icy)}" r="${f1(r)}" fill="${u("iris")}"/>
           <path d="${fibers}" stroke="${mix(eye, .45)}" stroke-width=".35" opacity=".55"/>
-          <circle cx="${icx}" cy="144.5" r="6.3" fill="none" stroke="${mix(eye, -.6)}" stroke-width="1"/>
-          <circle cx="${icx}" cy="144.5" r="2.6" fill="#0c0c0c"/>
-          <circle cx="${icx + 2.1}" cy="142.3" r="1.5" fill="#fff" opacity=".95"/>
-          <circle cx="${icx - 2}" cy="146.6" r=".6" fill="#fff" opacity=".6"/>
+          <circle cx="${f1(icx)}" cy="${f1(icy)}" r="${f1(r)}" fill="none" stroke="${mix(eye, -.6)}" stroke-width="1"/>
+          <circle cx="${f1(icx)}" cy="${f1(icy)}" r="${f1(r * .42)}" fill="#0c0c0c"/>
+          <circle cx="${f1(icx + 2.1)}" cy="${f1(icy - 2.2)}" r="1.5" fill="#fff" opacity=".95"/>
+          <circle cx="${f1(icx - 2)}" cy="${f1(icy + 2.1)}" r=".6" fill="#fff" opacity=".6"/>
         </g>
-        <rect x="${cx - 16}" y="133" width="32" height="8.5" fill="#000" opacity=".2" filter="${u("b1")}"/>
+        <rect x="${f1(cx - w - 4)}" y="${f1(eyeY - h * 1.6 - 2)}" width="${f1(2 * w + 8)}" height="${f1(h + 2)}" fill="#000" opacity="${f.mono ? .26 : .2}" filter="${u("b1")}"/>
       </g>
-      <path d="M${X(115)},145.5 Q${X(123)},135.6 ${X(133)},137.8 Q${X(138.5)},139.3 ${X(141)},146" fill="none" stroke="#1a1614" stroke-width="${F ? 2.7 : 2.2}" stroke-linecap="round"/>
-      <path d="M${X(115.5)},145 Q${X(112)},143.4 ${F ? `${X(109)},139.4` : `${X(111.5)},141.8`}" fill="none" stroke="#1a1614" stroke-width="1.4" stroke-linecap="round"/>
-      ${F ? `<path d="M${X(119)},139.8 l${-dir * 1.2},-2.4 M${X(122.5)},138.2 l${-dir * .8},-2.6" stroke="#1a1614" stroke-width=".9" stroke-linecap="round"/>` : ""}
-      <path d="M${X(118.5)},148.4 Q${X(128)},152.4 ${X(138)},148.4" fill="none" stroke="${deep}" stroke-width=".9" opacity=".38"/>
+      <path d="${lid}" fill="none" stroke="#1a1614" stroke-width="${f1((F ? 2.6 : 2.1) + (f.mono ? .5 : 0))}" stroke-linecap="round"/>
+      <path d="M${X(-w - .5)},${f1(oy)} Q${X(-w - 4)},${f1(oy - 1.5)} ${X(-w - (F ? 6 : 4.5))},${f1(oy - (F ? 4.5 : 3))}" fill="none" stroke="#1a1614" stroke-width="1.4" stroke-linecap="round"/>
+      ${F ? `<path d="M${X(-w * .6)},${f1(eyeY - h * 1.25)} l${f1(-dir * 1.2)},-2.4 M${X(-w * .25)},${f1(eyeY - h * 1.35)} l${f1(-dir * .7)},-2.6" stroke="#1a1614" stroke-width=".9" stroke-linecap="round"/>` : ""}
+      ${f.mono ? `<path d="M${X(w + .5)},${f1(eyeY + .5)} q${f1(dir * 2)},-2 ${f1(dir * 1)},-4.5" stroke="${deep}" stroke-width="1" fill="none" opacity=".5"/>` : ""}
+      <path d="M${X(-w * .75)},${f1(eyeY + h * .95)} Q${X(0)},${f1(eyeY + h * 1.25)} ${X(w * .8)},${f1(eyeY + h * .8)}" fill="none" stroke="${deep}" stroke-width=".9" opacity=".38"/>
     </g>
-    <path d="M${X(118)},137.4 Q${X(127)},130.4 ${X(138)},134.4" fill="none" stroke="${deep}" stroke-width="1.1" opacity=".42"/>`;
+    ${f.mono ? "" : `<path d="${crease}" fill="none" stroke="${deep}" stroke-width="1.1" opacity=".42"/>`}`;
   };
   const browSvg = (cx, dir) => {
-    const X = v => cx + dir * (v - 128);
-    const P0 = [X(F ? 115 : 113.5), 132], P1 = [X(125.5), F ? 121.5 : 120.5], P2 = [X(141), 126];
+    const X = dx => cx + dir * dx, by = eyeY - f.browGap, len = f.browLen;
+    const P0 = [X(-len * .5), by + 3 + f.browTilt], P1 = [X(-len * .08), by - f.browArch], P2 = [X(len * .5), by + 1.5];
     const q = t => [(1 - t) ** 2 * P0[0] + 2 * (1 - t) * t * P1[0] + t * t * P2[0], (1 - t) ** 2 * P0[1] + 2 * (1 - t) * t * P1[1] + t * t * P2[1]];
     const hairs = Array.from({ length: 20 }, (_, i) => {
       const t = i / 19, [x, y] = q(t), [x2, y2] = q(Math.min(1, t + .08));
-      const len = F ? 3.6 : 4.6, dx = (x2 - x), dy = (y2 - y), d = Math.hypot(dx, dy) || 1;
+      const len2 = f.browThick + 1, dx = x2 - x, dy = y2 - y, d = Math.hypot(dx, dy) || 1;
       const lift = t > .75 ? -1.4 : -.4; // hairs near the nose point more upwards
-      return `M${x.toFixed(1)},${(y + 1).toFixed(1)} l${(-dx / d * len).toFixed(2)},${(-dy / d * len + lift).toFixed(2)}`;
+      return `M${f1(x)},${f1(y + 1)} l${(-dx / d * len2).toFixed(2)},${(-dy / d * len2 + lift).toFixed(2)}`;
     }).join(" ");
-    const base = `M${P0[0]},${P0[1]} Q${P1[0]},${P1[1]} ${P2[0]},${P2[1]}`;
-    return `<path d="${base}" stroke="${brow}" stroke-width="${F ? 2.8 : 3.8}" stroke-linecap="round" fill="none" opacity=".55"/>
+    return `<path d="M${f1(P0[0])},${f1(P0[1])} Q${f1(P1[0])},${f1(P1[1])} ${f1(P2[0])},${f1(P2[1])}" stroke="${brow}" stroke-width="${f1(f.browThick)}" stroke-linecap="round" fill="none" opacity=".55"/>
       <path d="${hairs}" stroke="${brow}" stroke-width=".9" stroke-linecap="round" fill="none" opacity=".85"/>`;
   };
-  const earSvg = (cx, dir) => `<ellipse cx="${cx}" cy="152" rx="11" ry="17" fill="${dir < 0 ? shade : u("skin")}"/>
-    <ellipse cx="${cx}" cy="152" rx="8" ry="13" fill="${warm}" opacity=".35"/>
-    <path d="M${cx - dir * 2},141 Q${cx - dir * 7},152 ${cx - dir * 1},164" stroke="${deep}" stroke-width="1.6" fill="none" opacity=".5"/>`;
+  const earSvg = dir => {
+    const cx = 150 - dir * (f.w + 3.5), rx = 10.5 * f.earS, ry = 16.5 * f.earS, cy = f.earY;
+    return `<ellipse cx="${f1(cx)}" cy="${f1(cy)}" rx="${f1(rx)}" ry="${f1(ry)}" fill="${dir < 0 ? shade : u("skin")}"/>
+    <ellipse cx="${f1(cx)}" cy="${f1(cy)}" rx="${f1(rx * .72)}" ry="${f1(ry * .78)}" fill="${warm}" opacity=".35"/>
+    <path d="M${f1(cx + dir * 2)},${f1(cy - ry * .65)} Q${f1(cx - dir * 4)},${f1(cy)} ${f1(cx + dir * 1)},${f1(cy + ry * .7)}" stroke="${deep}" stroke-width="1.6" fill="none" opacity=".5"/>`;
+  };
 
-  // ---- mouth: a resting mouth and a talking one that CSS swaps in while the name is spoken ----
-  const restMouth = L.smile === "open"
-    ? `<path d="M134,193 Q150,198 166,193 Q160,207 150,208 Q140,207 134,193 Z" fill="#5c2326"/>
-       <path d="M137,194.4 Q150,198.6 163,194.4 L161.2,199 Q150,201.6 138.8,199 Z" fill="#f4efe6"/>
-       <path d="M133,193 Q142,187.6 150,189.8 Q158,187.6 167,193 Q150,196.2 133,193 Z" fill="${lipDark}"/>
-       <path d="M137,204.5 Q150,209 163,204.5 Q158,212.4 150,212.6 Q142,212.4 137,204.5 Z" fill="${u("lip")}"/>`
-    : `<path d="M136,195 Q143,189.6 150,191.8 Q157,189.6 164,195 Q150,197.2 136,195 Z" fill="${lipDark}"/>
-       <path d="M137,195.6 Q150,198.2 163,195.6 Q157,204.4 150,204.6 Q143,204.4 137,195.6 Z" fill="${u("lip")}"/>
-       <path d="M134.5,194.6 Q150,199.4 165.5,194.6" fill="none" stroke="${mix(lip, -.5)}" stroke-width="1.5" stroke-linecap="round"/>`;
-  const talkMouth = `<path d="M137,193 Q150,196 163,193 Q158,206 150,207 Q142,206 137,193 Z" fill="#4e1d20"/>
-       <path d="M139,193.6 Q150,196.6 161,193.6 L159.6,197 Q150,199 140.4,197 Z" fill="#f4efe6"/>
-       <ellipse cx="150" cy="203" rx="6" ry="2.6" fill="#b5545b" opacity=".8"/>`;
+  // ---- mouth: the resting mouth follows the expression; the talking one is swapped in while the name is spoken ----
+  const mw = f.mouthW, ul = f.upperLip, ll = f.lowerLip, my = mouthY;
+  const lift = { neutral: .4, smile: 2.4, grin: 3.4, open: 3 }[f.expr];
+  const upperLipPath = (c, y0) => `M${f1(150 - mw)},${f1(y0 - c)} C${f1(150 - mw * .5)},${f1(y0 - ul - 1.6)} ${f1(147)},${f1(y0 - ul - 1)} 150,${f1(y0 - ul + .6)} ` +
+    `C${f1(153)},${f1(y0 - ul - 1)} ${f1(150 + mw * .5)},${f1(y0 - ul - 1.6)} ${f1(150 + mw)},${f1(y0 - c)} Q150,${f1(y0 + 1.6 + c * .5)} ${f1(150 - mw)},${f1(y0 - c)} Z`;
+  const openMouth = (c, open, y0, teeth = true) => {
+    const hole = `M${f1(150 - mw + 1)},${f1(y0 - c + .5)} Q150,${f1(y0 + 1.2)} ${f1(150 + mw - 1)},${f1(y0 - c + .5)} Q150,${f1(y0 + open * 2 + c)} ${f1(150 - mw + 1)},${f1(y0 - c + .5)} Z`;
+    return `<path d="M${f1(150 - mw + 2)},${f1(y0 - c + 1.5)} Q150,${f1(y0 + open * 2 + c)} ${f1(150 + mw - 2)},${f1(y0 - c + 1.5)} C${f1(150 + mw * .5)},${f1(y0 + open + ll + 1)} ${f1(150 - mw * .5)},${f1(y0 + open + ll + 1)} ${f1(150 - mw + 2)},${f1(y0 - c + 1.5)} Z" fill="${u("lip")}"/>
+      <path d="${hole}" fill="#4f1d21"/>
+      ${teeth ? `<clipPath id="${p}mh${y0 | 0}${open | 0}"><path d="${hole}"/></clipPath>
+      <g clip-path="url(#${p}mh${y0 | 0}${open | 0})"><rect x="${f1(150 - mw)}" y="${f1(y0 - 6)}" width="${f1(2 * mw)}" height="${f1(open * .62 + 5.4)}" fill="#f5f0e7"/>
+      <ellipse cx="150" cy="${f1(y0 + open * 1.25)}" rx="${f1(mw * .45)}" ry="${f1(open * .5)}" fill="#b5545b" opacity=".85"/></g>` : ""}
+      ${upperLipPath(c, y0)}`;
+  };
+  const restMouth = f.expr === "open" ? openMouth(lift, 6.5, my)
+    : f.expr === "grin" ? openMouth(lift, 3.4, my)
+    : `<path d="M${f1(150 - mw + 1)},${f1(my - lift + .5)} Q150,${f1(my + 2 + lift * .5)} ${f1(150 + mw - 1)},${f1(my - lift + .5)} C${f1(150 + mw * .55)},${f1(my + ll + 1.6)} ${f1(150 - mw * .55)},${f1(my + ll + 1.6)} ${f1(150 - mw + 1)},${f1(my - lift + .5)} Z" fill="${u("lip")}"/>
+       ${upperLipPath(lift, my)}
+       <path d="M${f1(150 - mw - .5)},${f1(my - lift - .2)} Q150,${f1(my + 2.4 + lift * .6)} ${f1(150 + mw + .5)},${f1(my - lift - .2)}" fill="none" stroke="${mix(lip, -.5)}" stroke-width="1.4" stroke-linecap="round"/>
+       <ellipse cx="150" cy="${f1(my + ll * .55 + 1)}" rx="${f1(mw * .35)}" ry="1.5" fill="#fff" opacity=".22" filter="${u("b1")}"/>`;
+  const talkMouth = openMouth(1, 5.5, my);
+  const dimples = f.dimples && f.expr !== "neutral"
+    ? `<path d="M${f1(150 - mw - 4)},${f1(my - lift - 3)} q-1.5,3 0,6 M${f1(150 + mw + 4)},${f1(my - lift - 3)} q1.5,3 0,6" stroke="${deep}" stroke-width="1.2" fill="none" opacity=".4"/>` : "";
+  const freckles = f.freckles.map(([dx, dy, r]) => `<circle cx="${f1(150 + dx)}" cy="${f1(eyeY + dy)}" r="${f1(r)}" fill="${deep}" opacity=".32"/>`).join("");
+  const mole = f.mole ? `<circle cx="${f1(150 + f.mole[0])}" cy="${f1(tipY + f.mole[1])}" r="1.3" fill="${mix(deep, -.3)}" opacity=".7"/>` : "";
 
   const neckwear = s.gender === "M"
     ? `<path d="M144,270 L156,270 L154.5,282 L145.5,282 Z" fill="${mix(tie, -.18)}"/>
@@ -500,10 +567,14 @@ function portrait(s) {
        <path d="M150,276 L130,266.5 Q128,277 132,288 Z" fill="#000" opacity=".12"/>
        <ellipse cx="150" cy="276" rx="4.6" ry="5" fill="${mix(tie, -.18)}"/>`;
 
+  const gx = f.eyeGap, gy = eyeY - 11;
   const glasses = L.glasses
-    ? `<g fill="${u("lens")}" stroke="#2a2a2a" stroke-width="2.2"><rect x="111" y="133" width="34" height="24" rx="9"/><rect x="155" y="133" width="34" height="24" rx="9"/></g>
-       <path d="M145,142.5 Q150,139.5 155,142.5 M111,140 L97,138 M189,140 L203,138" fill="none" stroke="#2a2a2a" stroke-width="2.2"/>
-       <path d="M116,152 L126,136 M160,152 L170,136" stroke="#fff" stroke-width="2.5" opacity=".3"/>` : "";
+    ? `<g fill="${u("lens")}" stroke="#2a2a2a" stroke-width="2.2"><rect x="${f1(150 - gx - 17)}" y="${f1(gy)}" width="34" height="23" rx="9"/><rect x="${f1(150 + gx - 17)}" y="${f1(gy)}" width="34" height="23" rx="9"/></g>
+       <path d="M${f1(150 - gx + 17)},${f1(gy + 8)} Q150,${f1(gy + 5)} ${f1(150 + gx - 17)},${f1(gy + 8)} M${f1(150 - gx - 17)},${f1(gy + 7)} L${f1(150 - f.w - 2)},${f1(gy + 5)} M${f1(150 + gx + 17)},${f1(gy + 7)} L${f1(150 + f.w + 2)},${f1(gy + 5)}" fill="none" stroke="#2a2a2a" stroke-width="2.2"/>
+       <path d="M${f1(150 - gx - 12)},${f1(gy + 19)} l10,-16 M${f1(150 + gx - 12)},${f1(gy + 19)} l10,-16" stroke="#fff" stroke-width="2.5" opacity=".3"/>` : "";
+
+  const nw = f.neckW, sh = f.shoulders.toFixed(3);
+  const hairlineY = (L.style === "bob" || L.style === "mop" ? 120 : 96) + (f.top - 70);
 
   return `<svg class="ppl" viewBox="0 0 300 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${s.en}의 사진">
   <defs>
@@ -537,13 +608,14 @@ function portrait(s) {
   <ellipse cx="196" cy="252" rx="110" ry="66" fill="#000" opacity=".08" filter="${u("b8")}"/>
 
   <g class="figure">
-    <g class="head">
+    <g class="head"><g transform="${headPose}"><g transform="${hairFit}">
       ${back}
       ${strandsBack ? `<g clip-path="${u("bh")}">${strandsBack}</g>` : ""}
-    </g>
-    <g class="shoulders">
-      <path d="M127,192 L126,250 Q150,266 174,250 L173,192 Z" fill="${u("neck")}"/>
-      <path d="M135,214 Q139,232 142,252 M165,214 Q161,232 158,252" stroke="${deep}" stroke-width="2" fill="none" opacity=".16" filter="${u("b1")}"/>
+      ${ties}
+    </g></g></g>
+    <g class="shoulders"><g transform="translate(150 340) scale(${sh} 1) translate(-150 -340)">
+      <path d="M${150 - nw},${chinY - 40} L${150 - nw - 1},250 Q150,266 ${150 + nw + 1},250 L${150 + nw},${chinY - 40} Z" fill="${u("neck")}"/>
+      <path d="M${150 - nw + 9},${chinY - 12} Q${150 - nw + 12},232 ${150 - nw + 16},252 M${150 + nw - 9},${chinY - 12} Q${150 + nw - 12},232 ${150 + nw - 16},252" stroke="${deep}" stroke-width="2" fill="none" opacity=".16" filter="${u("b1")}"/>
       <path d="M28,340 C32,288 76,262 150,258 C224,262 268,288 272,340 Z" fill="${u("coat")}"/>
       <ellipse cx="94" cy="286" rx="42" ry="14" fill="#fff" opacity=".1" filter="${u("b4")}"/>
       <path d="M58,330 Q70,306 92,296 M242,330 Q232,308 212,298" stroke="${mix(blazer, -.35)}" stroke-width="3" fill="none" opacity=".35" filter="${u("b1")}"/>
@@ -556,46 +628,48 @@ function portrait(s) {
       <path d="M114,258 L150,324 M186,258 L150,324" stroke="${mix(blazer, .3)}" stroke-width="1.2" opacity=".6"/>
       <path d="M200,298 h15 v8 q0,7.5 -7.5,10.5 q-7.5,-3 -7.5,-10.5 Z" fill="${badge}" stroke="#fff" stroke-width="1"/>
       <path d="${star(207.5, 305, 3.2)}" fill="${blazer}" opacity=".85"/>
-    </g>
+    </g></g>
 
-    <g class="head">
-      ${earSvg(92, 1)}${earSvg(208, -1)}
+    <g class="head"><g transform="${headPose}">
+      ${earSvg(1)}${earSvg(-1)}
 
       <path d="${FACE}" fill="${u("skin")}"/>
       <g clip-path="${u("face")}">
-        <ellipse cx="206" cy="160" rx="24" ry="72" fill="${deep}" opacity=".3" filter="${u("b8")}"/>
-        <ellipse cx="96" cy="160" rx="12" ry="60" fill="#fff" opacity=".18" filter="${u("b4")}"/>
-        <ellipse cx="150" cy="234" rx="50" ry="14" fill="${deep}" opacity=".35" filter="${u("b4")}"/>
-        <ellipse cx="150" cy="${L.style === "bob" ? 122 : 96}" rx="58" ry="16" fill="${deep}" opacity=".35" filter="${u("b4")}"/>
-        <ellipse cx="136" cy="${L.style === "bob" ? 132 : 108}" rx="20" ry="9" fill="#fff" opacity=".18" filter="${u("b4")}"/>
-        <ellipse cx="121" cy="163" rx="13" ry="8" fill="#fff" opacity=".14" filter="${u("b4")}"/>
-        <ellipse cx="119" cy="173" rx="13" ry="8" fill="#e8665c" opacity=".14" filter="${u("b3")}"/>
-        <ellipse cx="181" cy="173" rx="13" ry="8" fill="#e8665c" opacity=".12" filter="${u("b3")}"/>
-        <ellipse cx="150" cy="176" rx="8" ry="6" fill="#e8665c" opacity=".1" filter="${u("b3")}"/>
-        <ellipse cx="150" cy="217" rx="9" ry="5" fill="#fff" opacity=".14" filter="${u("b3")}"/>
-        <path d="M188,188 Q176,212 150,222" stroke="${deep}" stroke-width="6" fill="none" opacity=".18" filter="${u("b3")}"/>
+        <ellipse cx="${f1(150 + f.w + 3)}" cy="160" rx="24" ry="72" fill="${deep}" opacity=".3" filter="${u("b8")}"/>
+        <ellipse cx="${f1(150 - f.w)}" cy="160" rx="12" ry="60" fill="#fff" opacity=".18" filter="${u("b4")}"/>
+        <ellipse cx="150" cy="${f1(chinY + 7)}" rx="50" ry="14" fill="${deep}" opacity=".35" filter="${u("b4")}"/>
+        <ellipse cx="150" cy="${f1(hairlineY)}" rx="58" ry="16" fill="${deep}" opacity=".35" filter="${u("b4")}"/>
+        <ellipse cx="136" cy="${f1(hairlineY + 12)}" rx="20" ry="9" fill="#fff" opacity=".18" filter="${u("b4")}"/>
+        <ellipse cx="${f1(150 - f.eyeGap + 1)}" cy="${f1(eyeY + 18)}" rx="13" ry="8" fill="#fff" opacity=".14" filter="${u("b4")}"/>
+        <ellipse cx="${f1(150 - f.eyeGap - 3)}" cy="${f1(eyeY + 27)}" rx="13" ry="8" fill="#e8665c" opacity="${f.blush.toFixed(2)}" filter="${u("b3")}"/>
+        <ellipse cx="${f1(150 + f.eyeGap + 3)}" cy="${f1(eyeY + 27)}" rx="13" ry="8" fill="#e8665c" opacity="${(f.blush * .85).toFixed(2)}" filter="${u("b3")}"/>
+        <ellipse cx="150" cy="${f1(tipY)}" rx="8" ry="6" fill="#e8665c" opacity=".1" filter="${u("b3")}"/>
+        <ellipse cx="150" cy="${f1(chinY - 9)}" rx="9" ry="5" fill="#fff" opacity=".14" filter="${u("b3")}"/>
+        <path d="M${f1(150 + f.jaw + 6)},188 Q${f1(150 + f.jaw - 6)},${f1(chinY - 12)} 150,${f1(chinY - 3)}" stroke="${deep}" stroke-width="6" fill="none" opacity=".18" filter="${u("b3")}"/>
+        ${freckles}
       </g>
+      ${mole}
 
-      ${eyeSvg(128, 1)}${eyeSvg(172, -1)}
-      <g class="brows">${browSvg(128, 1)}${browSvg(172, -1)}</g>
+      ${eyeSvg(150 - f.eyeGap, 1)}${eyeSvg(150 + f.eyeGap, -1)}
+      <g class="brows">${browSvg(150 - f.eyeGap, 1)}${browSvg(150 + f.eyeGap, -1)}</g>
 
-      <path d="M155,148 Q157.5,163 159.5,173" stroke="${deep}" stroke-width="5" fill="none" opacity=".26" filter="${u("b3")}"/>
-      <path d="M143.5,150 Q142.5,162 142,170" stroke="${deep}" stroke-width="3" fill="none" opacity=".1" filter="${u("b1")}"/>
-      <path d="M149,146 L148.5,168" stroke="#fff" stroke-width="3" fill="none" opacity=".17" filter="${u("b1")}"/>
-      <ellipse cx="149.5" cy="174.5" rx="6.5" ry="4.5" fill="${light}" opacity=".6" filter="${u("b1")}"/>
-      <path d="M141.5,173.5 Q139,180 145.5,181.4 M158.5,173.5 Q161,180 154.5,181.4" stroke="${deep}" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".7"/>
-      <ellipse cx="146" cy="180.6" rx="2.5" ry="1.2" fill="${mix(deep, -.35)}" opacity=".55"/>
-      <ellipse cx="154" cy="180.6" rx="2.5" ry="1.2" fill="${mix(deep, -.35)}" opacity=".55"/>
-      <ellipse cx="151" cy="185" rx="9" ry="2.6" fill="${deep}" opacity=".3" filter="${u("b1")}"/>
-      <path d="M150,185 L150,190" stroke="${deep}" stroke-width="3" opacity=".12" filter="${u("b1")}"/>
+      <path d="M155,${f1(eyeY + 3)} Q157.5,${f1(tipY - 10)} ${f1(150 + f.noseW * .95)},${f1(tipY - 1)}" stroke="${deep}" stroke-width="5" fill="none" opacity=".26" filter="${u("b3")}"/>
+      <path d="M143.5,${f1(eyeY + 5)} Q142.5,${f1(tipY - 12)} ${f1(150 - f.noseW * .8)},${f1(tipY - 4)}" stroke="${deep}" stroke-width="3" fill="none" opacity=".1" filter="${u("b1")}"/>
+      <path d="M149,${f1(eyeY + 1)} L148.5,${f1(tipY - 6)}" stroke="#fff" stroke-width="3" fill="none" opacity=".17" filter="${u("b1")}"/>
+      <ellipse cx="149.5" cy="${f1(tipY)}" rx="${f1(f.noseRound * 1.4)}" ry="${f1(f.noseRound)}" fill="${light}" opacity=".6" filter="${u("b1")}"/>
+      <path d="M${f1(150 - f.noseW * .85)},${f1(tipY - 1)} Q${f1(150 - f.noseW - 2)},${f1(tipY + 5.5)} ${f1(150 - f.noseW * .4)},${f1(tipY + 7)} M${f1(150 + f.noseW * .85)},${f1(tipY - 1)} Q${f1(150 + f.noseW + 2)},${f1(tipY + 5.5)} ${f1(150 + f.noseW * .4)},${f1(tipY + 7)}" stroke="${deep}" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".7"/>
+      <ellipse cx="${f1(150 - f.noseW * .42)}" cy="${f1(tipY + 6)}" rx="${f1(f.noseW * .3)}" ry="1.2" fill="${mix(deep, -.35)}" opacity=".55"/>
+      <ellipse cx="${f1(150 + f.noseW * .42)}" cy="${f1(tipY + 6)}" rx="${f1(f.noseW * .3)}" ry="1.2" fill="${mix(deep, -.35)}" opacity=".55"/>
+      <ellipse cx="151" cy="${f1(tipY + 10.5)}" rx="${f1(f.noseW + 1)}" ry="2.6" fill="${deep}" opacity=".3" filter="${u("b1")}"/>
+      <path d="M150,${f1(tipY + 10)} L150,${f1(my - ul - 1)}" stroke="${deep}" stroke-width="3" opacity=".12" filter="${u("b1")}"/>
 
-      <g class="m-rest">${restMouth}</g>
+      <g class="m-rest">${restMouth}${dimples}</g>
       <g class="m-talk">${talkMouth}</g>
-      <ellipse cx="150" cy="${L.smile === "open" ? 216 : 209}" rx="10" ry="3" fill="${deep}" opacity=".28" filter="${u("b1")}"/>
+      <ellipse cx="150" cy="${f1(my + ll + (f.expr === "open" ? 11 : 5))}" rx="10" ry="3" fill="${deep}" opacity=".28" filter="${u("b1")}"/>
 
       ${glasses}
-      ${front}
-    </g>
+      <g transform="${hairFit}">${front}</g>
+    </g></g>
   </g>
 
   <rect width="300" height="340" fill="${u("vig")}"/>
